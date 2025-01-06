@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "page_show",
+      "value": "page from package"
+    },
+    {
+      "name": "shared_desc",
+      "value": "Request 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端"
+    }
+  ]
+}
