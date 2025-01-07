@@ -1,8 +1,10 @@
 import { ArkResponse, ArkResponseBody, ArkHeader } from "ok_reqwest_api.so"
-import util from '@ohos.util';
-import { OkHttpClient } from ".";
-import { JSON } from "@kit.ArkTS";
-import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit';
+import util from '@ohos.util'
+import { OkHttpClient } from "."
+import { JSON } from "@kit.ArkTS"
+import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit'
+import systemDateTime from "@ohos.systemDateTime"
+import { ByteArrayStream } from "../stream"
 
 
 interface RequestInterceptor {
@@ -58,7 +60,7 @@ export class Request {
   readonly method?: HttpMethod | undefined
   readonly headers: Array<ArkHeader> = []
   readonly mediaType?: string | undefined
-  readonly body?: ArrayBuffer | undefined
+  readonly body?: RequestBody | undefined
 
   private client: OkHttpClient
 
@@ -85,29 +87,252 @@ export class Request {
   }
 }
 
-interface RequestBody {
+export interface RequestBody {
+  contentType(): string | undefined
+  contentLength(): number
   bytesSync(): ArrayBuffer
   bytes(): Promise<ArrayBuffer>
 }
 
-export class Part {
-  body: ArrayBuffer
-  originalType: string
-}
-
-export class MultipartBody implements RequestBody{
-  parts: Part[] = []
-  bytesSync(): ArrayBuffer {
-    throw new Error("Method not implemented.");
+class RealRequestBody implements RequestBody {
+  private data: ArrayBuffer
+  private originalType: string | undefined
+  constructor(data: ArrayBuffer, originalType: string | undefined = undefined) {
+    this.data = data
+    this.originalType = originalType
   }
 
-  bytes(): Promise<ArrayBuffer> {
-    throw new Error("Method not implemented.");
+  contentLength(): number {
+    return this.data.byteLength
+  }
+
+  contentType(): string | undefined {
+    return this.originalType
+  }
+
+  bytesSync(): ArrayBuffer {
+    return this.data
+  }
+
+  async bytes(): Promise<ArrayBuffer> {
+    return this.data
+  }
+
+}
+
+export class Part {
+  body: RequestBody
+  headers: Record<string, string> | undefined
+
+  constructor(body: RequestBody, headers: Record<string, string> | undefined = undefined) {
+    this.body = body
+    this.headers = headers
+
+  }
+
+  static create(body: RequestBody, headers: Record<string, string> | undefined = undefined): Part {
+    return new Part(body, headers)
+  }
+
+  static createFormData(name: string, fileName: string | undefined = undefined, body: RequestBody): Part {
+    if (name.length <= 0) {
+      throw Error('name is Empty')
+    }
+    let disposition
+    if (fileName) {
+      disposition = `form-data; name="${encodeURIComponent(String(name))}"; filename="${encodeURIComponent(String(fileName))}"`
+    } else {
+      disposition = `form-data; name="${encodeURIComponent(String(name))}"`
+    }
+
+    Part.checkName(name)
+    let headers = {
+      "Content-Disposition": disposition
+    }
+    return Part.create(body, headers)
+  }
+
+  private static checkName(name: string): void {
+    for (let i = 0; i < name.length; i++) {
+      const char = name.charAt(i);  // 获取单个字符
+      const charCode = char.charCodeAt(0);  // 获取字符的 Unicode 编码
+
+      // 检查字符的 Unicode 编码是否在合法范围外
+      if (charCode <= 0x20 || charCode >= 0x7f) {
+        throw new Error(`Unexpected char in header name: ${name}`);
+      }
+    }
+  }
+}
+
+class MultipartBody implements RequestBody{
+  parts: Part[] = []
+  boundary: string
+  originalType: string
+
+  private CRLF: Uint8Array = this.stringToBytes('"\r\n"')
+
+  private DASHDASH: Uint8Array = this.stringToBytes('--')
+
+  private COLONSPACE: Uint8Array = this.stringToBytes(': ')
+
+  constructor(parts: Part[], boundary: string, originalType: string) {
+    this.parts = parts
+    this.boundary = boundary
+    this.originalType = originalType
+  }
+
+  contentLength(): number {
+    return this.bytesSync().byteLength
+  }
+
+  contentType(): string {
+    return this.originalType
+  }
+
+  bytesSync(): ArrayBuffer {
+    let stream = new ByteArrayStream(new Uint8Array())
+    this.parts.forEach((part) => {
+      if (part.headers) {
+
+        stream.writeBytes(this.DASHDASH)
+        stream.writeBytes(this.stringToBytes(this.boundary))
+        stream.writeBytes(this.CRLF)
+        Object.entries(part.headers).forEach(([name, value]) => {
+          stream.writeBytes(this.stringToBytes(name))
+          stream.writeBytes(this.COLONSPACE)
+          stream.writeBytes(this.stringToBytes(value))
+        })
+      }
+      let body = part.body
+      let contentType = body.contentType()
+      if (contentType) {
+        stream.writeBytes(this.stringToBytes('Content-Type: '))
+        stream.writeBytes(this.stringToBytes(contentType))
+        stream.writeBytes(this.CRLF)
+      }
+      let contentLength = body.contentLength()
+      if (contentLength != -1) {
+        stream.writeBytes(this.stringToBytes('Content-Length: '))
+        stream.writeBytes(this.stringToBytes(`${contentLength}`))
+        stream.writeBytes(this.CRLF)
+      }
+      stream.writeBytes(this.CRLF)
+
+      //write body
+      stream.writeBytes(new Uint8Array(body.bytesSync()))
+
+      stream.writeBytes(this.CRLF)
+    })
+
+    stream.writeBytes(this.DASHDASH)
+    stream.writeBytes(this.stringToBytes(this.boundary))
+    stream.writeBytes(this.DASHDASH)
+    stream.writeBytes(this.CRLF)
+
+    return stream.readBytes(stream.getLength())
+  }
+
+  async bytes(): Promise<ArrayBuffer> {
+    let stream = new ByteArrayStream(new Uint8Array())
+    this.parts.forEach(async (part) => {
+      if (part.headers) {
+
+        stream.writeBytes(this.DASHDASH)
+        stream.writeBytes(this.stringToBytes(this.boundary))
+        stream.writeBytes(this.CRLF)
+        Object.entries(part.headers).forEach(([name, value]) => {
+          stream.writeBytes(this.stringToBytes(name))
+          stream.writeBytes(this.COLONSPACE)
+          stream.writeBytes(this.stringToBytes(value))
+        })
+      }
+      let body = part.body
+      let contentType = body.contentType()
+      if (contentType) {
+        stream.writeBytes(this.stringToBytes('Content-Type: '))
+        stream.writeBytes(this.stringToBytes(contentType))
+        stream.writeBytes(this.CRLF)
+      }
+      let contentLength = body.contentLength()
+      if (contentLength != -1) {
+        stream.writeBytes(this.stringToBytes('Content-Length: '))
+        stream.writeBytes(this.stringToBytes(`${contentLength}`))
+        stream.writeBytes(this.CRLF)
+      }
+      stream.writeBytes(this.CRLF)
+      let bodyBuffer = await body.bytes()
+      //write body
+      stream.writeBytes(new Uint8Array(bodyBuffer))
+
+      stream.writeBytes(this.CRLF)
+    })
+
+    stream.writeBytes(this.DASHDASH)
+    stream.writeBytes(this.stringToBytes(this.boundary))
+    stream.writeBytes(this.DASHDASH)
+    stream.writeBytes(this.CRLF)
+    return stream.readBytes(stream.getLength())
+  }
+
+  private stringToBytes(str: string): Uint8Array {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  builder() : MultipartBodyBuilder {
+    return new MultipartBodyBuilder()
   }
 }
 
 export class MultipartBodyBuilder {
 
+  parts: Part[] = []
+  contentType = "multipart/mixed"
+  boundary: string
+  constructor() {
+    this.boundary = `${systemDateTime.getTime()}`
+  }
+
+  addPart(body: RequestBody, headers: Record<string, string> | undefined = undefined): MultipartBodyBuilder {
+    if (headers) {
+      if (headers['Content-Type'])
+        throw Error('Unexpected header: Content-Type')
+      if (headers['Content-Length'])
+        throw Error('Unexpected header: Content-Length')
+    }
+    this.parts.push(Part.create(body, headers))
+    return this
+  }
+
+  addTextPart(value: string, headers: Record<string, string> | undefined = undefined): MultipartBodyBuilder {
+    let encoder = util.TextEncoder.create('utf-8')
+    let uint8Array = encoder.encodeInto(value)
+    this.addPart(new RealRequestBody(uint8Array), headers)
+    return this
+  }
+
+  addFormDataPart(name: string, fileName: string | undefined = undefined, body: RequestBody): MultipartBodyBuilder {
+    this.parts.push(Part.createFormData(name, fileName, body))
+    return this
+  }
+
+  addTextFormDataPart(name: string, value: string) {
+    let encoder = util.TextEncoder.create('utf-8')
+    let uint8Array = encoder.encodeInto(value)
+    this.parts.push(Part.createFormData(name, "", new RealRequestBody(uint8Array)))
+    return this
+  }
+
+  build(): MultipartBody {
+    if (this.parts.length <= 0) {
+      throw Error('Multipart body must have at least one part.')
+    }
+    return new MultipartBody(this.parts, this.boundary, this.contentType)
+  }
 }
 
 export class FileBody implements RequestBody{
@@ -116,6 +341,14 @@ export class FileBody implements RequestBody{
   constructor(path: string, originalType: string = 'application/octet-stream') {
     this.path = path
     this.originalType = originalType
+  }
+
+  contentLength(): number {
+    return this.bytesSync().byteLength
+  }
+
+  contentType(): string {
+    return this.originalType
   }
 
   bytesSync(): ArrayBuffer {
@@ -155,7 +388,7 @@ export class RequestBuilder {
   url: string
   method?: HttpMethod
   headers: Array<ArkHeader> = []
-  body?: ArrayBuffer
+  body?: RequestBody
   mediaType?: string
 
   constructor(client: OkHttpClient) {
@@ -192,29 +425,34 @@ export class RequestBuilder {
   form(form: Record<string, any>): RequestBuilder {
     this.setHead('Content-Type', 'application/x-www-form-urlencoded')
     this.mediaType = 'application/x-www-form-urlencoded'
-    this.intoBody(this.toUrlencoded(form))
+    this.intoBody(this.toUrlencoded(form), 'application/x-www-form-urlencoded')
     return this
   }
 
   json(data: any): RequestBuilder {
     this.setHead('Content-Type', 'application/json; charset=utf-8')
     this.mediaType = 'application/json; charset=utf-8'
-    this.intoBody(JSON.stringify(data))
+    this.intoBody(JSON.stringify(data), 'application/json; charset=utf-8')
     return this
   }
 
-  bytes(buffer: ArrayBuffer, contentType: string): RequestBuilder {
+  file(fileBody: FileBody) : RequestBuilder {
+    this.setHead('Content-Type', fileBody.contentType())
+    this.body = fileBody
+    return this
+  }
+
+  multipart(multipartBody: MultipartBody) : RequestBuilder {
+    this.setHead('Content-Type', multipartBody.contentType())
+    this.body = multipartBody
+    return this
+  }
+
+  data(body: RequestBody, contentType: string): RequestBuilder {
     this.setHead('Content-Type', contentType)
-    this.body = buffer
+    this.body = body
     return this
   }
-
-  // file(filePath: string, contentType: string = 'application/octet-stream'): RequestBuilder {
-  //   this.setHead('Content-Type', contentType)
-  //   this.mediaType = contentType
-  //   this.fileIntoBody(filePath)
-  //   return this
-  // }
 
   private toUrlencoded(obj: Record<string, any>): string {
     return Object.entries(obj)
@@ -227,10 +465,10 @@ export class RequestBuilder {
       .join('&')
   }
 
-  private intoBody(data: string) {
+  private intoBody(data: string, contentType: string) {
     let encoder = util.TextEncoder.create('utf-8')
     let uint8Array = encoder.encodeInto(data)
-    this.body = uint8Array.buffer
+    this.body = new RealRequestBody(uint8Array, contentType)
   }
 
 

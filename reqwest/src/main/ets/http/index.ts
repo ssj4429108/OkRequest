@@ -76,13 +76,14 @@ export class OkHttpClient {
     return new this.baseApi!.ArkHeader(name, value)
   }
 
-  private createRealRequest(request: Request): ArkRequest {
+  private async createRealRequest(request: Request): Promise<ArkRequest> {
+    let bytes = await request.body?.bytes()
     let realRequest = new this.baseApi!.ArkRequest(
       request.url,
       request.method?.valueOf() || undefined,
       request.headers,
       request.mediaType? request.mediaType : "application/json; charset=utf-8",
-      request.body
+      bytes
     )
     return realRequest
   }
@@ -94,7 +95,7 @@ export class OkHttpClient {
       request = interceptor.intercept(request)
     })
 
-    let realRequest = this.createRealRequest(request)
+    let realRequest = await this.createRealRequest(request)
     this.requestCache.set(request.requestId, realRequest)
 
     let result = await this.send(request, realRequest)
