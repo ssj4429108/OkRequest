@@ -7,7 +7,7 @@
  * The file declars the all interfaces.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The interface is ExchangeCodec

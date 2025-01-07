@@ -7,7 +7,7 @@
  * The file declares the Cache class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let ENTRY_COUNT: Int64 = 2
 let ENTRY_METADATA: Int64 = 0

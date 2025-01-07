@@ -1,11 +1,11 @@
 /**
  * Created on 2024/12/31
  */
-package ohos_app_cangjie_reqwest
+package ohos_app_cangjie_OkRequest
 
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
-import ohos_app_cangjie_reqwest.okhttp.*
+import ohos_app_cangjie_OkRequest.okhttp.*
 
 @Interop[ArkTS]
 public class ArkResponse <: ToString {

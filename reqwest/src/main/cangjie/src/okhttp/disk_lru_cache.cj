@@ -7,7 +7,7 @@
  * The file declares the CallServerInterceptor class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 class DiskLruCache {
     let fileSystem: FileSystem

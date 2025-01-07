@@ -7,7 +7,7 @@
  * The file declares the ExchangeCodec class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /* let member CRLF_CRLF type is Array<Byte> */
 let CRLF_CRLF: Array<Byte> = "\r\n\r\n".toArray()

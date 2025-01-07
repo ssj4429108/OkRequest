@@ -6,7 +6,7 @@
  * @file The file declars the xxxx class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let PREFACE: String = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 

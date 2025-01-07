@@ -7,7 +7,7 @@
  * The file declares the MultipartBody class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The class is MultipartBody

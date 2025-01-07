@@ -1,10 +1,10 @@
 /**
  * Created on 2024/12/31
  */
-package ohos_app_cangjie_reqwest
+package ohos_app_cangjie_OkRequest
 
 import std.collection.ArrayList
-import ohos_app_cangjie_reqwest.okhttp.*
+import ohos_app_cangjie_OkRequest.okhttp.*
 import encoding.url.URL
 internal import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
@@ -94,7 +94,6 @@ public class ArkRequest {
             case Some(body) => RealRequestBody.create(MediaType.get(mediaType), body)
             case None => None<RequestBody>
         }
-
         requestBuilder.method(method, body: realBody)
     }
     @Interop[ArkTS, Invisible]

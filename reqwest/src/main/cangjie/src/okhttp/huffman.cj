@@ -6,7 +6,7 @@
  * @file The file declars the ByteBuffer class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let HUFF_SYM: UInt16 = 0b1000_0000_0000_0000
 let HUFF_ACCEPTED: UInt16 = 0b100_0000_0000_0000

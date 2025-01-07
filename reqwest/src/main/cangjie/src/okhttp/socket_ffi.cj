@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2022-2024. All rights resvered.
  */
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let AI_IPPROTO_TCP: UInt8 = 6
 let AI_IPPROTO_UDP: UInt8 = 17

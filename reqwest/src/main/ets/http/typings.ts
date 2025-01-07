@@ -2,6 +2,8 @@ import { ArkResponse, ArkResponseBody, ArkHeader } from "ok_reqwest_api.so"
 import util from '@ohos.util';
 import { OkHttpClient } from ".";
 import { JSON } from "@kit.ArkTS";
+import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit';
+
 
 interface RequestInterceptor {
   intercept(request: Request): Request
@@ -83,6 +85,71 @@ export class Request {
   }
 }
 
+interface RequestBody {
+  bytesSync(): ArrayBuffer
+  bytes(): Promise<ArrayBuffer>
+}
+
+export class Part {
+  body: ArrayBuffer
+  originalType: string
+}
+
+export class MultipartBody implements RequestBody{
+  parts: Part[] = []
+  bytesSync(): ArrayBuffer {
+    throw new Error("Method not implemented.");
+  }
+
+  bytes(): Promise<ArrayBuffer> {
+    throw new Error("Method not implemented.");
+  }
+}
+
+export class MultipartBodyBuilder {
+
+}
+
+export class FileBody implements RequestBody{
+  readonly originalType: string
+  private path: string
+  constructor(path: string, originalType: string = 'application/octet-stream') {
+    this.path = path
+    this.originalType = originalType
+  }
+
+  bytesSync(): ArrayBuffer {
+    let file = fs.openSync(this.path)
+    let bufferSize = fs.statSync(this.path).size
+    let buf = new ArrayBuffer(bufferSize)
+    let readSize = 0
+
+    let readOptions: ReadOptions = {
+      offset: readSize,
+      length: bufferSize
+    }
+    let _ = fs.readSync(file.fd, buf, readOptions)
+    fs.closeSync(file)
+    return buf
+  }
+
+  async bytes(): Promise<ArrayBuffer> {
+    let stat = await fs.stat(this.path)
+    let bufferSize = stat.size
+    let buf = new ArrayBuffer(bufferSize)
+    let readSize = 0
+
+    let file = await fs.open(this.path)
+    let readOptions: ReadOptions = {
+      offset: readSize,
+      length: bufferSize
+    }
+    let _ = await fs.read(file.fd, buf, readOptions)
+    await fs.close(file)
+    return buf
+  }
+}
+
 export class RequestBuilder {
   readonly client: OkHttpClient
   url: string
@@ -115,12 +182,6 @@ export class RequestBuilder {
     return this
   }
 
-  multipart(): RequestBuilder {
-    // this.headCheck('Content-Type', `multipart/form-data; boundary={}`)
-    // this.mediaType =
-    return this
-  }
-
   query(query: Record<string, any>): RequestBuilder {
     let separator = this.url.includes('?') ? '&' : '?'
     let queryEncoded = this.toUrlencoded(query)
@@ -129,18 +190,31 @@ export class RequestBuilder {
   }
 
   form(form: Record<string, any>): RequestBuilder {
-    this.setHead('Content-Type', "application/x-www-form-urlencoded")
-    this.mediaType = "application/x-www-form-urlencoded"
+    this.setHead('Content-Type', 'application/x-www-form-urlencoded')
+    this.mediaType = 'application/x-www-form-urlencoded'
     this.intoBody(this.toUrlencoded(form))
     return this
   }
 
   json(data: any): RequestBuilder {
-    this.setHead('Content-Type', "application/json; charset=utf-8")
-    this.mediaType = "application/json; charset=utf-8"
+    this.setHead('Content-Type', 'application/json; charset=utf-8')
+    this.mediaType = 'application/json; charset=utf-8'
     this.intoBody(JSON.stringify(data))
     return this
   }
+
+  bytes(buffer: ArrayBuffer, contentType: string): RequestBuilder {
+    this.setHead('Content-Type', contentType)
+    this.body = buffer
+    return this
+  }
+
+  // file(filePath: string, contentType: string = 'application/octet-stream'): RequestBuilder {
+  //   this.setHead('Content-Type', contentType)
+  //   this.mediaType = contentType
+  //   this.fileIntoBody(filePath)
+  //   return this
+  // }
 
   private toUrlencoded(obj: Record<string, any>): string {
     return Object.entries(obj)
@@ -158,6 +232,8 @@ export class RequestBuilder {
     let uint8Array = encoder.encodeInto(data)
     this.body = uint8Array.buffer
   }
+
+
 
   build(): Request {
     return new Request(this)

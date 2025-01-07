@@ -7,7 +7,7 @@
  * The file declares the Cookie class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let BIG: Int64 = 0xFFFFFF
 

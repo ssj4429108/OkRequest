@@ -5,7 +5,7 @@
  * @file The file declares the Settings class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * Settings describe characteristics of the sending peer, which are used by the receiving peer.

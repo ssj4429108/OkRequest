@@ -6,7 +6,7 @@
  * @file The file manage ExchangeCodec.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The class is Http2ExchangeCodec

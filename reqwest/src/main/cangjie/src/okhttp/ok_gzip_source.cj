@@ -7,7 +7,7 @@
  * The file declares the OkGzipSource class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 public class OkGzipSource <: Source {
     private let base: ByteArrayStream = ByteArrayStream()

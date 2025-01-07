@@ -7,7 +7,7 @@
  * The file declares the Source impls.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 abstract class AbstractSource <: Source {
     protected var closed: Bool = false

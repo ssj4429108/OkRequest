@@ -38,7 +38,7 @@
       ]
     },
     {
-      "name": "reqwest",
+      "name": "OkRequest",
       "srcPath": "./reqwest",
       "targets": [
         {

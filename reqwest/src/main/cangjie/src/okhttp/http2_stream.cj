@@ -6,7 +6,7 @@
  * @file The file declares the H2Stream class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The class is H2Stream

@@ -1,7 +1,7 @@
 /**
  * Created on 2024/12/31
  */
-package ohos_app_cangjie_reqwest
+package ohos_app_cangjie_OkRequest
 
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*

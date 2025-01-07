@@ -7,7 +7,7 @@
  * The file declares the ConnectInterceptor class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The class is ConnectInterceptor inherited from Interceptor

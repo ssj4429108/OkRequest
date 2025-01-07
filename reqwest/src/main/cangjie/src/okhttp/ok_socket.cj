@@ -7,7 +7,7 @@
  * The file declares the OKSocket class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 public class OKSocket <: Resource & InputStream & OutputStream {
     public let client: SocketClient

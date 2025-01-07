@@ -7,7 +7,7 @@
  * The file declares the Sink impls.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 class KnownLengthSink <: Sink {
     private var closed: Bool = false

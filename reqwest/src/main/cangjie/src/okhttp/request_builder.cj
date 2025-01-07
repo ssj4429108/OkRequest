@@ -7,7 +7,7 @@
  * The file declares the RequestBuilder class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * The class is RequestBuilder inherited from Builder<Request>

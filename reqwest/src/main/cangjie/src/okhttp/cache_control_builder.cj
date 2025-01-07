@@ -7,7 +7,7 @@
  * The file declares the CacheControlBuilder class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /**
  * Builds a CacheControl request header.

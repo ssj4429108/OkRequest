@@ -7,7 +7,7 @@
  * The file declares the all interfaces.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 public class MediaType <: ToString {
     private static let TOKEN: String = "([a-zA-Z0-9-!#$%&'*+.^_`{|}~]+)"

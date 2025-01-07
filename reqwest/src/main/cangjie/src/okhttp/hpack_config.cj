@@ -6,7 +6,7 @@
  * @file The file declars the HpkConf class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 /* 128 */
 let CONST_128_I64: Int64 = 0x80

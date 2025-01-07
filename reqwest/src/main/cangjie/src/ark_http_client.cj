@@ -1,9 +1,9 @@
 /**
  * Created on 2024/12/31
  */
-package ohos_app_cangjie_reqwest
+package ohos_app_cangjie_OkRequest
 
-import ohos_app_cangjie_reqwest.okhttp.*
+import ohos_app_cangjie_OkRequest.okhttp.*
 import std.time.Duration
 import ohos.ark_interop.JSHashMapEx
 import ohos.ark_interop.*

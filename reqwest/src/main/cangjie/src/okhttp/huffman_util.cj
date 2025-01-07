@@ -6,7 +6,7 @@
  * @file The file declars the HuffUtil class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 let HUFF_SYM_TABLE: Array<(UInt32, UInt32)> = [
     (13, 0xffc00000),

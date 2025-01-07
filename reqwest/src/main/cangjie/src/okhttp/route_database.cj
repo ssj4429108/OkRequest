@@ -7,7 +7,7 @@
  * The file declares the Address class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 class RouteDatabase {
     public var mutex: Monitor = Monitor()

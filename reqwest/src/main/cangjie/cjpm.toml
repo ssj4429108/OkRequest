@@ -10,7 +10,7 @@
       path-option = [ "${X86_64_OHOS_LIBS}", "${X86_64_OHOS_MACRO_LIBS}", "${X86_64_OHOS_KIT_LIBS}" ]
 
 [dependencies]
-  [dependencies.cj_res_reqwest]
+  [dependencies.cj_res_OkRequest]
     path = "./cj_res"
     version = "1.0.0"
 
@@ -19,7 +19,7 @@
   compile-option = ""
   description = "CangjieUI Application"
   link-option = ""
-  name = "ohos_app_cangjie_reqwest"
+  name = "ohos_app_cangjie_OkRequest"
   output-type = "dynamic"
   src-dir = "src"
   target-dir = ""

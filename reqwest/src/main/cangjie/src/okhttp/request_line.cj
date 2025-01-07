@@ -7,7 +7,7 @@
  * The file declares the RequestLine class.
  */
 
-package ohos_app_cangjie_reqwest.okhttp
+package ohos_app_cangjie_OkRequest.okhttp
 
 class RequestLine {
     public static func get(request: Request): String {
