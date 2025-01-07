@@ -5,6 +5,18 @@
   "main": "Index.ets",
   "author": "skipper",
   "license": "Apache-2.0",
+  "repository": "https://github.com/ssj4429108/OkRequest",
+  "keywords": [
+    "OpenHarmony",
+    "HarmonyOS",
+    "request",
+    "http",
+    "OkHttp",
+    "reqwest"
+  ],
+  "tags": [
+    "Network"
+  ],
   "dependencies": {
     "libark_interop_loader.so": "file:./src/main/cangjie/loader",
 
