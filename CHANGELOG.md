@@ -15,3 +15,9 @@
 - 新增RequestBuilder.file()
 - 新增RequestBuilder.multipart()
 - 新增MultipartBodyBuilder及FileBody
+
+### 1.0.2 / 2025-1-8
+
+- 新增TextRequestBody
+- 异步化createRealRequest，调整request body to bytes 至 promise
+- 统一request body转化逻辑

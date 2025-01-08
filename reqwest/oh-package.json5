@@ -1,6 +1,6 @@
 {
   "name": "@axzo/ok-request",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "OkRequest 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端",
   "main": "Index.ets",
   "author": "skipper",
