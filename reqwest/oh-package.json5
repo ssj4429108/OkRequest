@@ -20,6 +20,6 @@
   "dependencies": {
     "libark_interop_loader.so": "file:./src/main/cangjie/loader",
 
-    "ok_reqwest_api.so": "file:./src/main/cangjie/ark_interop_api"
+    "ok_request_api.so": "file:./src/main/cangjie/ark_interop_api"
   }
 }

@@ -1,4 +1,4 @@
-import { ArkResponse, ArkResponseBody, ArkHeader } from "ok_reqwest_api.so"
+import { ArkResponse, ArkResponseBody, ArkHeader } from "ok_request_api.so"
 import util from '@ohos.util'
 import { OkHttpClient } from "."
 import { JSON } from "@kit.ArkTS"
@@ -94,16 +94,16 @@ export interface RequestBody {
   bytes(): Promise<ArrayBuffer>
 }
 
-class RealRequestBody implements RequestBody {
-  private data: ArrayBuffer
+class TextRequestBody implements RequestBody {
+  private data: string
   private originalType: string | undefined
-  constructor(data: ArrayBuffer, originalType: string | undefined = undefined) {
+  constructor(data: string, originalType: string | undefined = undefined) {
     this.data = data
     this.originalType = originalType
   }
 
   contentLength(): number {
-    return this.data.byteLength
+    return this.bytesSync().byteLength
   }
 
   contentType(): string | undefined {
@@ -111,11 +111,24 @@ class RealRequestBody implements RequestBody {
   }
 
   bytesSync(): ArrayBuffer {
-    return this.data
+    return this.string2BytesSync(this.data)
   }
 
   async bytes(): Promise<ArrayBuffer> {
-    return this.data
+    return await this.string2Bytes(this.data)
+  }
+
+
+  private string2BytesSync(data: string): ArrayBuffer {
+    let encoder = util.TextEncoder.create('utf-8')
+    let uint8Array = encoder.encodeInto(data)
+    return uint8Array
+  }
+
+  private async string2Bytes(data: string): Promise<ArrayBuffer> {
+    let encoder = util.TextEncoder.create('utf-8')
+    let uint8Array = encoder.encodeInto(data)
+    return uint8Array
   }
 
 }
@@ -309,9 +322,7 @@ export class MultipartBodyBuilder {
   }
 
   addTextPart(value: string, headers: Record<string, string> | undefined = undefined): MultipartBodyBuilder {
-    let encoder = util.TextEncoder.create('utf-8')
-    let uint8Array = encoder.encodeInto(value)
-    this.addPart(new RealRequestBody(uint8Array), headers)
+    this.addPart(new TextRequestBody(value), headers)
     return this
   }
 
@@ -321,9 +332,7 @@ export class MultipartBodyBuilder {
   }
 
   addTextFormDataPart(name: string, value: string) {
-    let encoder = util.TextEncoder.create('utf-8')
-    let uint8Array = encoder.encodeInto(value)
-    this.parts.push(Part.createFormData(name, "", new RealRequestBody(uint8Array)))
+    this.parts.push(Part.createFormData(name, "", new TextRequestBody(value)))
     return this
   }
 
@@ -425,14 +434,14 @@ export class RequestBuilder {
   form(form: Record<string, any>): RequestBuilder {
     this.setHead('Content-Type', 'application/x-www-form-urlencoded')
     this.mediaType = 'application/x-www-form-urlencoded'
-    this.intoBody(this.toUrlencoded(form), 'application/x-www-form-urlencoded')
+    this.body = new TextRequestBody(this.toUrlencoded(form), 'application/x-www-form-urlencoded')
     return this
   }
 
   json(data: any): RequestBuilder {
     this.setHead('Content-Type', 'application/json; charset=utf-8')
     this.mediaType = 'application/json; charset=utf-8'
-    this.intoBody(JSON.stringify(data), 'application/json; charset=utf-8')
+    this.body = new TextRequestBody(JSON.stringify(data), 'application/json; charset=utf-8')
     return this
   }
 
@@ -464,14 +473,6 @@ export class RequestBuilder {
       })
       .join('&')
   }
-
-  private intoBody(data: string, contentType: string) {
-    let encoder = util.TextEncoder.create('utf-8')
-    let uint8Array = encoder.encodeInto(data)
-    this.body = new RealRequestBody(uint8Array, contentType)
-  }
-
-
 
   build(): Request {
     return new Request(this)

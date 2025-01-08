@@ -1,4 +1,4 @@
-import { ArkHttpClient, ArkRequest, ArkResponse, ArkHeader, CustomLib } from "ok_reqwest_api.so";
+import { ArkHttpClient, ArkRequest, ArkResponse, ArkHeader, CustomLib } from "ok_request_api.so";
 import { requireCJLib } from "libark_interop_loader.so";
 import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
 
@@ -11,7 +11,7 @@ export class OkHttpClient {
   private config: OkConfig
 
   constructor(config: OkConfig) {
-    this.baseApi = requireCJLib('libohos_app_cangjie_base.so') as CustomLib
+    this.baseApi = requireCJLib('libohos_app_cangjie_OkRequest.so') as CustomLib
     this.client = new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections)
     this.config = config
   }
@@ -77,7 +77,7 @@ export class OkHttpClient {
   }
 
   private async createRealRequest(request: Request): Promise<ArkRequest> {
-    let bytes = await request.body?.bytes()
+    let bytes = await request.body?.bytes() || undefined
     let realRequest = new this.baseApi!.ArkRequest(
       request.url,
       request.method?.valueOf() || undefined,

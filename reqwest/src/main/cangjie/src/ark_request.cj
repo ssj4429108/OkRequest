@@ -8,7 +8,6 @@ import ohos_app_cangjie_OkRequest.okhttp.*
 import encoding.url.URL
 internal import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
-import ohos.hilog.Hilog
 
 @Interop[ArkTS]
 public class ArkHeader <: ToString {
@@ -29,7 +28,6 @@ public class ArkHeader <: ToString {
 
 @Interop[ArkTS, Async]
 public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
-
     request.requestFuture = spawn {
         let request = request.buildRealRequest()
         let response = client.getRealClient().newCall(request).execute()

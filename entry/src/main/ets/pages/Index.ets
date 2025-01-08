@@ -1,13 +1,16 @@
-import { requireCJLib } from "libark_interop_loader.so";
+import { OkConfig, OkHttpClient } from '@axzo/ok-request';
 
-interface CJLib {
-  testCJ(src: string): string
-}
+const config = new OkConfig(
+  5,
+  30
+)
 
 @Entry
 @Component
 struct Index {
   @State message: string = 'Hello World';
+
+  client = new OkHttpClient(config)
 
   build() {
     RelativeContainer() {
@@ -18,9 +21,14 @@ struct Index {
           center: { anchor: '__container__', align: VerticalAlign.Center },
           middle: { anchor: '__container__', align: HorizontalAlign.Center }
         })
-        .onClick(() => {
-          const lib = requireCJLib("libohos_app_cangjie_entry.so") as CJLib
-          this.message = lib.testCJ("Cangjie")
+        .onClick(async () => {
+
+          try {
+            let res = await this.client.get('https://baidu.com').send()
+            console.log(res?.text() || "哈哈")
+          } catch (e) {
+            console.log(e)
+          }
         })
     }
     .height('100%')

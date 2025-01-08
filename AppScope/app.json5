@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "cn.axzo.okReqwest",
+    "bundleName": "cn.axzo.okRequest",
     "vendor": "example",
     "versionCode": 1000000,
     "versionName": "1.0.0",

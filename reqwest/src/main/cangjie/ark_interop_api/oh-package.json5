@@ -1,6 +1,6 @@
 {
-  "name": "ok_reqwest_api.so",
+  "name": "ok_request_api.so",
   "types": "./ark_interop_api.d.ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": ""
 }
