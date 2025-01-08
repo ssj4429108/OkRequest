@@ -21,3 +21,7 @@
 - 新增TextRequestBody
 - 异步化createRealRequest，调整request body to bytes 至 promise
 - 统一request body转化逻辑
+
+### 1.0.3 / 2025-1-8
+- ResponseBody 新增 text， json 及 bytes function
+- 更改 RequestBuild.json<T>(data: any) to RequestBuild.json<T>(data: Record<string, any> | any)
