@@ -8,6 +8,7 @@ import std.time.Duration
 import ohos.ark_interop.JSHashMapEx
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
+import net.tls.TlsClientConfig
 
 @Interop[ArkTS]
 public class ArkHttpClient {
@@ -21,9 +22,13 @@ public class ArkHttpClient {
         this.timeout = timeout
         this.maxConnections = maxConnections
         let connectionPool = ConnectionPool(maxIdleConnections: maxConnections)
-        realClient = HttpClient.builder().connectTimeout(Duration.second * timeout).readTimeout(
-            Duration.second * timeout).writeTimeout(Duration.second * timeout).connectionPool(Some(connectionPool)).
-            build()
+        let tlsConfig = TlsClientConfig()
+        realClient = HttpClient.builder()
+            .connectTimeout(Duration.second * timeout)
+            .readTimeout(Duration.second * timeout)
+            .writeTimeout(Duration.second * timeout)
+            .connectionPool(Some(connectionPool))
+            .build()
     }
 
     @Interop[ArkTS, Invisible]

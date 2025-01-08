@@ -42,7 +42,9 @@ config.setBaseUrl("xxx.xxx.xx")
 
 //request 拦截器  
 config.addRequestInterceptor((request: Request) => {
-  return request
+  return request.newBuilder()
+    .head('xxx','xxx')
+    .build()
 })
   
 //response 拦截器  
@@ -71,6 +73,15 @@ let res: ResponseBody = await this.client.post('xx/xx/xx').json({
   s: '1',
   a: 2
 }).send()
+```
+
+### HEADER 设置
+
+```typescript
+let res: ResponseBody = await this.client.post('xx/xx/xx').json({
+  s: '1',
+  a: 2
+}).head('name', 'value').head('xxx', 'xxxx').send()
 ```
 
 ### BODY解析示例
@@ -117,4 +128,14 @@ let multipart = new MultiPartBodyBuilder()
   .addTextFormDataPart('key', 'dsa')
   .build()
 let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
+```
+
+### 异常处理
+
+```typescript
+try {
+  await this.client.get('https://baidu.com').send()
+} catch(e: HttpError) {
+  
+}
 ```
