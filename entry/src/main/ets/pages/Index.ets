@@ -25,7 +25,7 @@ struct Index {
 
           try {
             let res = await this.client.get('https://baidu.com').send()
-            console.log(res?.text() || "哈哈")
+            console.log(res?.text())
           } catch (e) {
             console.log(e)
           }
