@@ -13,7 +13,7 @@ Request 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端
 
 ## 下载/安装
 
-ohpm install reqwest
+ohpm install @axzo/ok-request
 
 ## 示例
 
