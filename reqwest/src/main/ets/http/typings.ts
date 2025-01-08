@@ -438,7 +438,7 @@ export class RequestBuilder {
     return this
   }
 
-  json(data: any): RequestBuilder {
+  json(data: Record<string, any> | any): RequestBuilder {
     this.setHead('Content-Type', 'application/json; charset=utf-8')
     this.mediaType = 'application/json; charset=utf-8'
     this.body = new TextRequestBody(JSON.stringify(data), 'application/json; charset=utf-8')
@@ -585,11 +585,35 @@ export class Response {
     this.successfully = response.isSuccess
   }
 
+  text(): string | undefined {
+    return this.body?.text()
+  }
+
+  json<T>(): T | undefined {
+    return this.body?.json<T>()
+  }
+
+  bytes(): ArrayBuffer | undefined {
+    return this.body?.bytes()
+  }
+}
+
+export class ResponseBody {
+  readonly data: ArrayBuffer | undefined
+  readonly contentTypeString: string
+  readonly contentLength: number
+
+  constructor(responseBody: ArkResponseBody) {
+    this.data = responseBody.data
+    this.contentTypeString = responseBody.contentTypeString
+    this.contentLength = responseBody.contentLength
+  }
+
   private bodyAvailable() {
-    if (!this.body) {
+    if (!this.data) {
       return false
     }
-    let bin = this.body.data
+    let bin = this.data
     if (!bin) {
       return false
     }
@@ -600,7 +624,7 @@ export class Response {
     if (!this.bodyAvailable()) {
       return undefined
     }
-    let bytes = this.body?.data!
+    let bytes = this.data
     let decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
     return decoder.decodeToString(new Uint8Array(bytes))
   }
@@ -620,19 +644,7 @@ export class Response {
     if (!this.bodyAvailable()) {
       return undefined
     }
-    return this.body?.data!
-  }
-}
-
-export class ResponseBody {
-  readonly data: ArrayBuffer | undefined
-  readonly contentTypeString: string
-  readonly contentLength: number
-
-  constructor(responseBody: ArkResponseBody) {
-    this.data = responseBody.data
-    this.contentTypeString = responseBody.contentTypeString
-    this.contentLength = responseBody.contentLength
+    return this.data!
   }
 }
 

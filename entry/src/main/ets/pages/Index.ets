@@ -1,4 +1,4 @@
-import { OkConfig, OkHttpClient } from '@axzo/ok-request';
+import { OkConfig, OkHttpClient, Request } from '@axzo/ok-request';
 
 const config = new OkConfig(
   5,
@@ -23,12 +23,6 @@ struct Index {
         })
         .onClick(async () => {
 
-          try {
-            let res = await this.client.get('https://baidu.com').send()
-            console.log(res?.text())
-          } catch (e) {
-            console.log(e)
-          }
         })
     }
     .height('100%')
