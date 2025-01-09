@@ -5,55 +5,106 @@ import { JSON } from "@kit.ArkTS"
 import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit'
 import systemDateTime from "@ohos.systemDateTime"
 import { ByteArrayStream } from "../stream"
+import { socket } from "@kit.NetworkKit"
 
 
-interface RequestInterceptor {
-  intercept(request: Request): Request
+export interface RequestInterceptor {
+  intercept: (request: Request) => Request
 }
 
-interface ResponseInterceptor {
-  intercept(response: Response | undefined): Response | undefined
+export interface ResponseInterceptor {
+  intercept: (response: Response | undefined) => Response | undefined
 }
 
+export enum Protocol {
+  HTTP_1_0 = 'http/1.0',
+  HTTP_1_1 = 'http/1.1',
+  HTTP_2 = 'h2',
+  H2_PRIOR_KNOWLEDGE = 'h2_prior_knowledge'
+}
 
-export class OkConfig {
-  readonly requestInterceptors: RequestInterceptor[] = []
-  readonly responseInterceptors: ResponseInterceptor[] = []
-  readonly timeout: number
-  readonly maxConnections: number
+export enum VerifyMode {
+  DEFAULT = 'Default',
+  ALL = 'All',
+  CUSTOM = 'Custom'
+}
+
+export interface TlsConfig {
+  verifyMode: VerifyMode | VerifyMode.DEFAULT
+  pem: string | undefined
+}
+
+// export interface Dns {
+//   lookup: (domain: string) => Array<socket.NetAddress>
+// }
+
+export interface OkConfig {
+  requestInterceptors: RequestInterceptor[]
+  responseInterceptors: ResponseInterceptor[]
+  timeout: number
+  maxConnections: number
   baseUrl: string | undefined
 
-  constructor(timeout: number = 30, maxConnections: number = 5) {
-    this.timeout = timeout
-    this.maxConnections = maxConnections
-  }
+  protocols: Array<Protocol> | undefined
 
-  setBaseUrl(baseUrl: string) {
-    this.baseUrl = baseUrl
-  }
+  tlsConfig: TlsConfig | undefined
 
-  addRequestInterceptor(interceptor: (request: Request) => Request) {
-    function createInterceptor(): RequestInterceptor {
-      return {
-        intercept(request: Request): Request {
-          return interceptor.call(this, request)
-        }
-      }
-    }
-    this.requestInterceptors.push(createInterceptor())
-  }
-
-  addResponseInterceptor(interceptor: (response: Response) => Response) {
-    function createInterceptor(): ResponseInterceptor {
-      return {
-        intercept(response: Response | undefined): Response | undefined {
-          return interceptor.call(this, response)
-        }
-      }
-    }
-    this.responseInterceptors.push(createInterceptor())
-  }
+  // dns: Dns | undefined
 }
+
+// class OkConfigImpl implements OkConfig {
+//   readonly requestInterceptors: RequestInterceptor[] = []
+//   readonly responseInterceptors: ResponseInterceptor[] = []
+//   readonly timeout: number
+//   readonly maxConnections: number
+//   baseUrl: string | undefined
+//
+//   readonly protocols: Array<Protocol> | undefined
+//
+//   readonly tlsConfig: TlsConfig | undefined
+//
+//   readonly dns: Dns | undefined
+//
+//   constructor(timeout: number = 30, maxConnections: number = 5, protocols: Array<Protocol> | undefined = undefined,
+//     tlsConfig: TlsConfig | undefined = undefined,
+//     dns: Dns | undefined = undefined) {
+//     this.timeout = timeout
+//     this.maxConnections = maxConnections
+//     this.protocols = protocols
+//     this.tlsConfig = tlsConfig
+//     this.dns = dns
+//   }
+//
+//   setBaseUrl(baseUrl: string) {
+//     this.baseUrl = baseUrl
+//   }
+//
+//   addRequestInterceptor(interceptor: (request: Request) => Request) {
+//
+//     function createInterceptor(): RequestInterceptor {
+//       return {
+//         intercept(request: Request): Request {
+//           return interceptor.call(this, request)
+//         }
+//       }
+//     }
+//
+//     this.requestInterceptors.push(createInterceptor())
+//   }
+//
+//   addResponseInterceptor(interceptor: (response: Response) => Response) {
+//
+//     function createInterceptor(): ResponseInterceptor {
+//       return {
+//         intercept(response: Response | undefined): Response | undefined {
+//           return interceptor.call(this, response)
+//         }
+//       }
+//     }
+//
+//     this.responseInterceptors.push(createInterceptor())
+//   }
+// }
 
 export class Request {
   readonly url: string
@@ -89,14 +140,18 @@ export class Request {
 
 export interface RequestBody {
   contentType(): string | undefined
+
   contentLength(): number
+
   bytesSync(): ArrayBuffer
+
   bytes(): Promise<ArrayBuffer>
 }
 
 class TextRequestBody implements RequestBody {
   private data: string
   private originalType: string | undefined
+
   constructor(data: string, originalType: string | undefined = undefined) {
     this.data = data
     this.originalType = originalType
@@ -130,7 +185,6 @@ class TextRequestBody implements RequestBody {
     let uint8Array = encoder.encodeInto(data)
     return uint8Array
   }
-
 }
 
 export class Part {
@@ -153,7 +207,8 @@ export class Part {
     }
     let disposition
     if (fileName) {
-      disposition = `form-data; name="${encodeURIComponent(String(name))}"; filename="${encodeURIComponent(String(fileName))}"`
+      disposition =
+        `form-data; name="${encodeURIComponent(String(name))}"; filename="${encodeURIComponent(String(fileName))}"`
     } else {
       disposition = `form-data; name="${encodeURIComponent(String(name))}"`
     }
@@ -167,8 +222,8 @@ export class Part {
 
   private static checkName(name: string): void {
     for (let i = 0; i < name.length; i++) {
-      const char = name.charAt(i);  // 获取单个字符
-      const charCode = char.charCodeAt(0);  // 获取字符的 Unicode 编码
+      const char = name.charAt(i); // 获取单个字符
+      const charCode = char.charCodeAt(0); // 获取字符的 Unicode 编码
 
       // 检查字符的 Unicode 编码是否在合法范围外
       if (charCode <= 0x20 || charCode >= 0x7f) {
@@ -178,7 +233,7 @@ export class Part {
   }
 }
 
-class MultipartBody implements RequestBody{
+class MultipartBody implements RequestBody {
   parts: Part[] = []
   boundary: string
   originalType: string
@@ -296,26 +351,28 @@ class MultipartBody implements RequestBody{
     return bytes;
   }
 
-  builder() : MultipartBodyBuilder {
+  builder(): MultipartBodyBuilder {
     return new MultipartBodyBuilder()
   }
 }
 
 export class MultipartBodyBuilder {
-
   parts: Part[] = []
   contentType = "multipart/mixed"
   boundary: string
+
   constructor() {
     this.boundary = `${systemDateTime.getTime()}`
   }
 
   addPart(body: RequestBody, headers: Record<string, string> | undefined = undefined): MultipartBodyBuilder {
     if (headers) {
-      if (headers['Content-Type'])
+      if (headers['Content-Type']) {
         throw Error('Unexpected header: Content-Type')
-      if (headers['Content-Length'])
+      }
+      if (headers['Content-Length']) {
         throw Error('Unexpected header: Content-Length')
+      }
     }
     this.parts.push(Part.create(body, headers))
     return this
@@ -344,9 +401,10 @@ export class MultipartBodyBuilder {
   }
 }
 
-export class FileBody implements RequestBody{
+export class FileBody implements RequestBody {
   readonly originalType: string
   private path: string
+
   constructor(path: string, originalType: string = 'application/octet-stream') {
     this.path = path
     this.originalType = originalType
@@ -445,13 +503,13 @@ export class RequestBuilder {
     return this
   }
 
-  file(fileBody: FileBody) : RequestBuilder {
+  file(fileBody: FileBody): RequestBuilder {
     this.setHead('Content-Type', fileBody.contentType())
     this.body = fileBody
     return this
   }
 
-  multipart(multipartBody: MultipartBody) : RequestBuilder {
+  multipart(multipartBody: MultipartBody): RequestBuilder {
     this.setHead('Content-Type', multipartBody.contentType())
     this.body = multipartBody
     return this

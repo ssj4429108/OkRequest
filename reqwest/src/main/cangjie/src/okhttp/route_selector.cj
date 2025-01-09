@@ -98,8 +98,12 @@ class RouteSelector {
             }
         }
         eventListener.dnsStart(call, socketHost)
-
-        let arr = resolveDomain(TCP, socketHost)
+        let arr = match (address.dns) {
+            case Some(dns) =>
+                dns.lookup(socketHost)
+            case None =>
+                SystemDns().lookup(socketHost)
+        }
 
         for (i in 0..arr.size) {
             let route: (SocketAddressKind, Array<UInt8>) = arr[i]

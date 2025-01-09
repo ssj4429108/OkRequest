@@ -46,6 +46,8 @@ public class HttpClientBuilder <: Builder<HttpClient> {
     }
     var listenerBuild: EventListener = NoneEventListener()
     var cacheBuild: Option<Cache> = Option<Cache>.None
+    
+    var dnsBuild: Option<Dns> = SystemDns()
 
     /**
      * The Function is build
@@ -59,7 +61,7 @@ public class HttpClientBuilder <: Builder<HttpClient> {
 
     init() {
         var cfg = TlsClientConfig()
-        cfg.verifyMode = CertificateVerifyMode.TrustAll
+        cfg.verifyMode = CertificateVerifyMode.Default
         tlsConfigBuild = cfg
     }
 
@@ -236,6 +238,11 @@ public class HttpClientBuilder <: Builder<HttpClient> {
 
     public func cache(cache: Option<Cache>): HttpClientBuilder {
         this.cacheBuild = cache
+        return this
+    }
+    
+    public func dns(dns: Option<Dns>): HttpClientBuilder {
+        this.dnsBuild = dns
         return this
     }
 }

@@ -262,3 +262,14 @@ func http_SOCKET_GetAddrInfo(net: UInt8, node: CString): CPointer<UInt8> {
 
     return addr
 }
+
+public interface Dns {
+    func lookup(domain: String): ArrayList<(SocketAddressKind, Array<UInt8>)>
+}
+
+class SystemDns <: Dns {
+	public func lookup(domain: String): ArrayList<(SocketAddressKind, Array<UInt8>)> {
+        //default tcp
+        return resolveDomain(TCP, domain)
+	}
+}

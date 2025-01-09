@@ -34,7 +34,7 @@ public class Transmitter {
     private var request: Option<Request> = Option<Request>.None
 
     /* var member address type is Address */
-    private var address: Address = Address(URL.parse(""), ArrayList<String>(), Option<TlsClientConfig>.None)
+    private var address: Address = Address(URL.parse(""), ArrayList<String>(), Option<TlsClientConfig>.None, None)
 
     /* var member exchangeFinder type is Option<ExchangeFinder> */
     private var exchangeFinder: Option<ExchangeFinder> = None
@@ -191,9 +191,9 @@ public class Transmitter {
 
     private func createAddress(url: URL): Address {
         if (url.scheme == "https") {
-            return Address(url, client.getProtocols(), client.getTlsConfig())
+            return Address(url, client.getProtocols(), client.getTlsConfig(), client.dns)
         } else {
-            return Address(url, client.getProtocols())
+            return Address(url, client.getProtocols(), client.dns)
         }
     }
 

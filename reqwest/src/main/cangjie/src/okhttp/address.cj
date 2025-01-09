@@ -21,22 +21,26 @@ public class Address <: Hashable & Equatable<Address> {
 
     private var protocols: ArrayList<String>
 
+    public var dns: Option<Dns>
+
     /**
      * The Function is init constructor
      *
      * @param url of URL
      * @since 0.29.3
      */
-    public init(url: URL, protocols: ArrayList<String>, tlsConfig: Option<TlsClientConfig>) {
+    public init(url: URL, protocols: ArrayList<String>, tlsConfig: Option<TlsClientConfig>, dns: Option<Dns>) {
         this.url = url
         this.protocols = protocols
         this.tlsConfig = tlsConfig
+        this.dns = dns
     }
 
-    public init(url: URL, protocols: ArrayList<String>) {
+    public init(url: URL, protocols: ArrayList<String>, dns: Option<Dns>) {
         this.url = url
         this.protocols = protocols
         this.tlsConfig = None
+        this.dns = dns
     }
 
     /**

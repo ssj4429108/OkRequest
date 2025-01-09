@@ -1,9 +1,9 @@
 import { ArkHttpClient, ArkRequest, ArkResponse, ArkHeader, CustomLib } from "ok_request_api.so";
 import { requireCJLib } from "libark_interop_loader.so";
-import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
+import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response, VerifyMode } from "./typings";
 
 export class OkHttpClient {
-  protected  baseApi: CustomLib | undefined;
+  protected baseApi: CustomLib | undefined;
   protected client: ArkHttpClient | undefined;
 
   private requestCache: Map<string, ArkRequest> = new Map()
@@ -12,7 +12,35 @@ export class OkHttpClient {
 
   constructor(config: OkConfig) {
     this.baseApi = requireCJLib('libohos_app_cangjie_OkRequest.so') as CustomLib
-    this.client = new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections)
+
+    let protocols = config.protocols?.map((item) => item.valueOf()) || undefined
+    let tlsConfig = undefined
+    if (config.tlsConfig) {
+      tlsConfig = new this.baseApi.ArkTlsConfig(config.tlsConfig.verifyMode.valueOf(), config.tlsConfig.pem)
+    }
+    // let dns = undefined
+    // if (config.dns) {
+    //   let lookup = (domain: string) => {
+    //     let result = config.dns?.lookup(domain)
+    //     let arkResult =  result?.map((item) => {
+    //       let socketAddressKind: string
+    //       switch (item.family) {
+    //         case 1: socketAddressKind = 'IPv4'
+    //         case 2: socketAddressKind = 'IPv6'
+    //         default : socketAddressKind = 'Unix'
+    //       }
+    //       let ip = item.address.split('.').map((item) => +item)
+    //       let inetAddress = new this.baseApi.ArkInetAddress(socketAddressKind, ip)
+    //       return inetAddress
+    //     })
+    //     return arkResult
+    //   }
+    //   let iArkDns: IArkDns = { lookup: lookup }
+    //   // dns = new
+    //   let arkDns = new this.baseApi.ArkDns(iArkDns)
+    //   dns = arkDns
+    // }
+    this.client = new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig)
     this.config = config
   }
 

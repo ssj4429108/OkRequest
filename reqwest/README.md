@@ -7,7 +7,7 @@ Request 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端
 - 支持HTTP/2，允许所有同一个主机地址的请求共享同一个 socket 连接
 - 连接池减少请求延时
 - 缓存响应内容，避免一些完全重复的请求
-- 简介的链式调用API
+- 简洁的链式调用API
 - 支持多种responseBody转换策略
 - 仓颉协程spawn支持
 
@@ -23,9 +23,9 @@ ohpm install @axzo/ok-request
 module.json5
 ```json5
 "requestPermissions": [
-{
-"name": "ohos.permission.INTERNET"
-}
+      {
+        "name": "ohos.permission.INTERNET"
+      }
 ],
 ```
 创建配置config
@@ -136,6 +136,6 @@ let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
 try {
   await this.client.get('https://baidu.com').send()
 } catch(e: HttpError) {
-  
+
 }
 ```

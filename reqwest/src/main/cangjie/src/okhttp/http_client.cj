@@ -45,6 +45,7 @@ public class HttpClient {
     private var followSslRedirects: Bool
     private var eventListener: EventListener
     var cache: Option<Cache>
+    var dns: Option<Dns>
 
     /**
      * The Function is init constructor
@@ -69,6 +70,7 @@ public class HttpClient {
         this.authenticator = builder.authenticatorBuild
         this.eventListener = builder.listenerBuild
         this.cache = builder.cacheBuild
+        this.dns = builder.dnsBuild
     }
 
     /**
