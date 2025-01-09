@@ -23,33 +23,39 @@ ohpm install @axzo/ok-request
 module.json5
 ```json5
 "requestPermissions": [
-      {
-        "name": "ohos.permission.INTERNET"
-      }
+{
+"name": "ohos.permission.INTERNET"
+}
 ],
 ```
 创建配置config
 ```typescript
 
-const config = new OkConfig(
-  //timeout
-  30,
-  //maxconnecttions
-  5
-)
+const config: OkConfig = {
+  requestInterceptors: [],
+  responseInterceptors: [],
+  timeout: 30,
+  maxConnections: 5,
+  baseUrl: undefined,
+  protocols: undefined,
+  tlsConfig: {
+    verifyMode: VerifyMode.ALL,
+    pem: undefined
+  }
+}
 
-config.setBaseUrl("xxx.xxx.xx")
-
-//request 拦截器  
-config.addRequestInterceptor((request: Request) => {
-  return request.newBuilder()
-    .head('xxx','xxx')
-    .build()
+config.requestInterceptors.push({
+  intercept: (request: Request) => {
+    return request.newBuilder()
+      .head('1', '2')
+      .build()
+  }
 })
 
-//response 拦截器  
-config.addResponseInterceptor((response: Response) => {
-  return response
+config.responseInterceptors.push({
+  intercept: (response: Response | undefined) => {
+    return response
+  }
 })
 ```
 

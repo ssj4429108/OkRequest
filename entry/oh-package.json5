@@ -6,6 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
+//    "@axzo/ok-request": "file:./../reqwest",
     "@axzo/ok-request": "file:./../reqwest"
 //    "reqwest": "1.0.0"
   }

@@ -1,4 +1,5 @@
 import { OkConfig, OkHttpClient, Request, VerifyMode } from '@axzo/ok-request';
+import { Response } from '@axzo/ok-request/src/main/ets/http/typings';
 
 const config: OkConfig = {
   requestInterceptors: [],
@@ -7,7 +8,10 @@ const config: OkConfig = {
   maxConnections: 5,
   baseUrl: undefined,
   protocols: undefined,
-  tlsConfig: undefined
+  tlsConfig: {
+    verifyMode: VerifyMode.ALL,
+    pem: undefined
+  }
 }
 
 config.requestInterceptors.push({
@@ -18,10 +22,12 @@ config.requestInterceptors.push({
   }
 })
 
-config.tlsConfig = {
-  verifyMode: VerifyMode.ALL,
-  pem: undefined
-}
+config.responseInterceptors.push({
+  intercept: (response: Response | undefined) => {
+    return response
+  }
+})
+
 
 @Entry
 @Component
