@@ -29,3 +29,6 @@
 ### 1.0.4 / 2025-1-9
 - 新增tlsConfig支持自签名
 - 更改OkConfig class -> interface
+
+### 1.0.5 / 2025-1-13
+- 新增dns解析API

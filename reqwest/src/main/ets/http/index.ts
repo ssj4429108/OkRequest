@@ -18,28 +18,6 @@ export class OkHttpClient {
     if (config.tlsConfig) {
       tlsConfig = new this.baseApi.ArkTlsConfig(config.tlsConfig.verifyMode.valueOf(), config.tlsConfig.pem)
     }
-    // let dns = undefined
-    // if (config.dns) {
-    //   let lookup = (domain: string) => {
-    //     let result = config.dns?.lookup(domain)
-    //     let arkResult =  result?.map((item) => {
-    //       let socketAddressKind: string
-    //       switch (item.family) {
-    //         case 1: socketAddressKind = 'IPv4'
-    //         case 2: socketAddressKind = 'IPv6'
-    //         default : socketAddressKind = 'Unix'
-    //       }
-    //       let ip = item.address.split('.').map((item) => +item)
-    //       let inetAddress = new this.baseApi.ArkInetAddress(socketAddressKind, ip)
-    //       return inetAddress
-    //     })
-    //     return arkResult
-    //   }
-    //   let iArkDns: IArkDns = { lookup: lookup }
-    //   // dns = new
-    //   let arkDns = new this.baseApi.ArkDns(iArkDns)
-    //   dns = arkDns
-    // }
     this.client = new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig)
     this.config = config
   }
@@ -106,12 +84,17 @@ export class OkHttpClient {
 
   private async createRealRequest(request: Request): Promise<ArkRequest> {
     let bytes = await request.body?.bytes() || undefined
+    let dns = undefined
+    if (request.dnsInfo) {
+      dns = JSON.stringify(request.dnsInfo)
+    }
     let realRequest = new this.baseApi!.ArkRequest(
       request.url,
       request.method?.valueOf() || undefined,
       request.headers,
       request.mediaType? request.mediaType : "application/json; charset=utf-8",
-      bytes
+      bytes,
+      dns
     )
     return realRequest
   }

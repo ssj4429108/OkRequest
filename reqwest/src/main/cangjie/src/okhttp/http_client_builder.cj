@@ -47,7 +47,7 @@ public class HttpClientBuilder <: Builder<HttpClient> {
     var listenerBuild: EventListener = NoneEventListener()
     var cacheBuild: Option<Cache> = Option<Cache>.None
     
-    var dnsBuild: Option<Dns> = SystemDns()
+    var dnsBuild: Option<Dns> = SystemDns.instance()
 
     /**
      * The Function is build

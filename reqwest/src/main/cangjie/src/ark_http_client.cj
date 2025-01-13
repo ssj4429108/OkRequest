@@ -67,11 +67,7 @@ public class ArkHttpClient {
             case Some(tlsConfig) => builder.tlsConfig(tlsConfig)
             case None => ()
         }
-        
-//        match (dns) {
-//        	case Some(arkDns) => builder.dns(ArkDns2Dns(arkDns))
-//            case None => ()
-//        }
+
 
         realClient = builder
             .build()

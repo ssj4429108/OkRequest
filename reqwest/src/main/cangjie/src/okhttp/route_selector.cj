@@ -102,7 +102,7 @@ class RouteSelector {
             case Some(dns) =>
                 dns.lookup(socketHost)
             case None =>
-                SystemDns().lookup(socketHost)
+                SystemDns.instance().lookup(socketHost)
         }
 
         for (i in 0..arr.size) {

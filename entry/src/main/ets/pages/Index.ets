@@ -1,5 +1,5 @@
-import { OkConfig, OkHttpClient, Request, VerifyMode } from '@axzo/ok-request';
-import { Response } from '@axzo/ok-request/src/main/ets/http/typings';
+import { OkConfig, OkHttpClient, Request, VerifyMode, Response } from '@axzo/ok-request';
+import { socket } from '@kit.NetworkKit';
 
 const config: OkConfig = {
   requestInterceptors: [],
@@ -11,7 +11,8 @@ const config: OkConfig = {
   tlsConfig: {
     verifyMode: VerifyMode.ALL,
     pem: undefined
-  }
+  },
+  dns: undefined
 }
 
 config.requestInterceptors.push({
@@ -46,6 +47,7 @@ struct Index {
         })
         .onClick(async () => {
           try {
+            // let res = await this.client.get("http://baidu.com").dns([{address: '192.168.1.1', family: 1}]).send()
             let res = await this.client.get("http://baidu.com").send()
             console.log(res?.text())
           } catch (e) {

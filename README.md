@@ -23,9 +23,9 @@ ohpm install @axzo/ok-request
 module.json5
 ```json5
 "requestPermissions": [
-      {
-        "name": "ohos.permission.INTERNET"
-      }
+{
+"name": "ohos.permission.INTERNET"
+}
 ],
 ```
 创建配置config
@@ -57,6 +57,8 @@ config.responseInterceptors.push({
     return response
   }
 })
+
+config.setBaseUrl('baseUrl')
 ```
 
 创建client
@@ -88,6 +90,14 @@ let res: ResponseBody = await this.client.post('xx/xx/xx').json({
   s: '1',
   a: 2
 }).head('name', 'value').head('xxx', 'xxxx').send()
+```
+
+### DNS 设置
+```typescript
+await this.client.post('xxx.xxx.xx').dns([{address:'192.168.1.1', family: 1}]).json({
+  s: '1',
+  a: 2
+}).send()
 ```
 
 ### BODY解析示例
@@ -142,6 +152,6 @@ let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
 try {
   await this.client.get('https://baidu.com').send()
 } catch(e: HttpError) {
-  
+
 }
 ```

@@ -25,3 +25,10 @@
 ### 1.0.3 / 2025-1-8
 - ResponseBody 新增 text， json 及 bytes function
 - 更改 RequestBuild.json<T>(data: any) to RequestBuild.json<T>(data: Record<string, any> | any)
+
+### 1.0.4 / 2025-1-9
+- 新增tlsConfig支持自签名
+- 更改OkConfig class -> interface
+
+### 1.0.5 / 2025-1-13
+- 新增dns解析API

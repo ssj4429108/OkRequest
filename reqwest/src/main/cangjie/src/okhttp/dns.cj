@@ -2,6 +2,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2022-2024. All rights resvered.
  */
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos.hilog.Hilog
 
 @When[os != "Windows"]
 @C
@@ -267,9 +268,43 @@ public interface Dns {
     func lookup(domain: String): ArrayList<(SocketAddressKind, Array<UInt8>)>
 }
 
-class SystemDns <: Dns {
-	public func lookup(domain: String): ArrayList<(SocketAddressKind, Array<UInt8>)> {
+public class SystemDns <: Dns {
+    private static var DNS: Option<SystemDns> = None
+
+    private static let mtx: ReentrantMutex = ReentrantMutex()
+    public static func instance(): SystemDns {
+        return match (DNS) {
+        	case Some(dns) => dns
+            case None => synchronized (mtx) {
+                match (DNS) {
+                	case Some(dns) => dns
+                    case None =>
+                        let dns = SystemDns()
+                        DNS = dns
+                        dns
+                }
+            }
+        }
+    }
+
+    private let dnsCache: HashMap<String, ArrayList<(SocketAddressKind, Array<UInt8>)>> = HashMap()
+
+    public func lookup(domain: String): ArrayList<(SocketAddressKind, Array<UInt8>)> {
+        if (dnsCache.contains(domain)) {
+            return dnsCache.get(domain).getOrThrow()
+        }
         //default tcp
-        return resolveDomain(TCP, domain)
+        let result = resolveDomain(TCP, domain)
+        if (!dnsCache.contains(domain)) {
+            dnsCache.put(domain, result)
+        }
+        return result
 	}
+
+    public func addDnsCache(domain: String, addressInfo: ArrayList<(SocketAddressKind, Array<UInt8>)>) {
+        if (dnsCache.contains(domain)) {
+            return
+        }
+        dnsCache.put(domain, addressInfo)
+    }
 }

@@ -34,9 +34,9 @@ export interface TlsConfig {
   pem: string | undefined
 }
 
-// export interface Dns {
-//   lookup: (domain: string) => Array<socket.NetAddress>
-// }
+export interface Dns {
+  lookup: (domain: string) => Array<socket.NetAddress>
+}
 
 export interface OkConfig {
   requestInterceptors: RequestInterceptor[]
@@ -49,62 +49,8 @@ export interface OkConfig {
 
   tlsConfig: TlsConfig | undefined
 
-  // dns: Dns | undefined
+  dns: Dns | undefined
 }
-
-// class OkConfigImpl implements OkConfig {
-//   readonly requestInterceptors: RequestInterceptor[] = []
-//   readonly responseInterceptors: ResponseInterceptor[] = []
-//   readonly timeout: number
-//   readonly maxConnections: number
-//   baseUrl: string | undefined
-//
-//   readonly protocols: Array<Protocol> | undefined
-//
-//   readonly tlsConfig: TlsConfig | undefined
-//
-//   readonly dns: Dns | undefined
-//
-//   constructor(timeout: number = 30, maxConnections: number = 5, protocols: Array<Protocol> | undefined = undefined,
-//     tlsConfig: TlsConfig | undefined = undefined,
-//     dns: Dns | undefined = undefined) {
-//     this.timeout = timeout
-//     this.maxConnections = maxConnections
-//     this.protocols = protocols
-//     this.tlsConfig = tlsConfig
-//     this.dns = dns
-//   }
-//
-//   setBaseUrl(baseUrl: string) {
-//     this.baseUrl = baseUrl
-//   }
-//
-//   addRequestInterceptor(interceptor: (request: Request) => Request) {
-//
-//     function createInterceptor(): RequestInterceptor {
-//       return {
-//         intercept(request: Request): Request {
-//           return interceptor.call(this, request)
-//         }
-//       }
-//     }
-//
-//     this.requestInterceptors.push(createInterceptor())
-//   }
-//
-//   addResponseInterceptor(interceptor: (response: Response) => Response) {
-//
-//     function createInterceptor(): ResponseInterceptor {
-//       return {
-//         intercept(response: Response | undefined): Response | undefined {
-//           return interceptor.call(this, response)
-//         }
-//       }
-//     }
-//
-//     this.responseInterceptors.push(createInterceptor())
-//   }
-// }
 
 export class Request {
   readonly url: string
@@ -117,6 +63,8 @@ export class Request {
 
   readonly requestId: string
 
+  readonly dnsInfo: Array<socket.NetAddress> | undefined = undefined
+
   constructor(builder: RequestBuilder) {
     this.url = builder.url
     this.method = builder.method
@@ -125,6 +73,7 @@ export class Request {
     this.body = builder.body
     this.client = builder.client
     this.requestId = util.generateRandomUUID(true)
+    this.dnsInfo = builder.dnsInfo
   }
 
   newBuilder(): RequestBuilder {
@@ -134,6 +83,7 @@ export class Request {
     builder.headers = this.headers
     builder.mediaType = this.mediaType
     builder.body = this.body
+    builder.dnsInfo = this.dnsInfo
     return builder
   }
 }
@@ -457,6 +407,7 @@ export class RequestBuilder {
   headers: Array<ArkHeader> = []
   body?: RequestBody
   mediaType?: string
+  dnsInfo: Array<socket.NetAddress> | undefined = undefined
 
   constructor(client: OkHttpClient) {
     this.client = client
@@ -500,6 +451,11 @@ export class RequestBuilder {
     this.setHead('Content-Type', 'application/json; charset=utf-8')
     this.mediaType = 'application/json; charset=utf-8'
     this.body = new TextRequestBody(JSON.stringify(data), 'application/json; charset=utf-8')
+    return this
+  }
+
+  dns(addressInfo: Array<socket.NetAddress>) {
+    this.dnsInfo = addressInfo
     return this
   }
 
