@@ -32,3 +32,6 @@
 
 ### 1.0.5 / 2025-1-13
 - 新增dns解析API
+
+### 1.0.6 / 2025-2-28
+- HttpError新增request， name及message

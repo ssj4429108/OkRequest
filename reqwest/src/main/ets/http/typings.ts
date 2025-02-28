@@ -665,10 +665,16 @@ export class ResponseBody {
 export class HttpError extends Error {
   responseBody?: ResponseBody | undefined
   code?: HttpStatusCode
+  request?: Request | undefined
 
-  constructor(code: HttpStatusCode, responseBody: ResponseBody | undefined) {
+  name: string = "HttpError"
+
+  message: string = this.responseBody?.text() ?? ""
+
+  constructor(request: Request, code: HttpStatusCode, responseBody: ResponseBody | undefined) {
     super()
     this.code = code
     this.responseBody = responseBody
+    this.request = request
   }
 }

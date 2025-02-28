@@ -1,6 +1,6 @@
 import { ArkHttpClient, ArkRequest, ArkResponse, ArkHeader, CustomLib } from "ok_request_api.so";
 import { requireCJLib } from "libark_interop_loader.so";
-import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response, VerifyMode } from "./typings";
+import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
 
 export class OkHttpClient {
   protected baseApi: CustomLib | undefined;
@@ -127,7 +127,7 @@ export class OkHttpClient {
     if (!result) return undefined
     let response = new Response(result, request)
     if (!response.successfully) {
-      throw new HttpError(response.code, response.body)
+      throw new HttpError(request, response.code, response.body)
     }
     return response
   }
