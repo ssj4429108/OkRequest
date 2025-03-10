@@ -580,6 +580,7 @@ export enum HttpMethod {
 
 export class Response {
   readonly code: HttpStatusCode
+  readonly headers: Array<ArkHeader> = []
   readonly body: ResponseBody | undefined
   readonly message: string
 
@@ -590,6 +591,7 @@ export class Response {
   constructor(response: ArkResponse, request: Request) {
     this.request = request
     this.code = response.code as HttpStatusCode
+    this.headers = response.headers
     let responseBody: ResponseBody | undefined
     if (response.body) {
       responseBody = new ResponseBody(response.body)

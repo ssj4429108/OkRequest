@@ -35,3 +35,6 @@
 
 ### 1.0.6 / 2025-2-28
 - HttpError新增request， name及message
+
+### 1.0.7 / 2025-3-10
+- Response新增headers
