@@ -9,6 +9,10 @@ import ohos_app_cangjie_OkRequest.okhttp.*
 import std.collection.forEach
 import std.collection.ArrayList
 import crypto.x509.Key
+import std.io.ByteArrayStream
+import encoding.json.stream.JsonWriter
+import ohos.hilog.Hilog
+import encoding.json.stream.WriteConfig
 
 @Interop[ArkTS]
 public class ArkResponse <: ToString {
@@ -17,9 +21,9 @@ public class ArkResponse <: ToString {
     public let code: Int64
     public let body: Option<ArkResponseBody>
     public let message: String
-    public let headers: Option<JSArrayEx<ArkHeader>>
+    public let headers: Option<String>
 
-    public init(url: String, protocol: String, code: Int64, headers: Option<JSArrayEx<ArkHeader>>, body: Option<ArkResponseBody>, message: String) {
+    public init(url: String, protocol: String, code: Int64, headers: Option<String>, body: Option<ArkResponseBody>, message: String) {
         this.url = url
         this.protocol = protocol
         this.code = code
@@ -86,13 +90,15 @@ public class ArkResponse <: ToString {
 
 extend Response {
     public func toArkResponse(): ArkResponse {
-        let headers = JSArrayEx<ArkHeader>()
-        var index = 0
-        while (let Some(header) <- this.getHeaders().iterator().next()) {
-            let name = header[0]
-            let value = String.join(header[1].toArray(), delimiter: ";")
-            headers.set(index, ArkHeader(name, value))
-            index ++
+        let respHeaders = this.getHeaders()
+        var headers = None<String>
+        if (!respHeaders.iterator().isEmpty()) {
+            let stream = ByteArrayStream()
+            let writer = JsonWriter(stream)
+            let fmtCfg = WriteConfig.pretty
+            writer.writeConfig = fmtCfg
+            writer.writeValue(this.getHeaders())
+            headers = Some(String.fromUtf8(stream.readToEnd()))
         }
         let arkResponseBody = match (this.getBody()) {
             case Some(body) =>

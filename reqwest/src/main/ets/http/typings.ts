@@ -591,7 +591,7 @@ export class Response {
   constructor(response: ArkResponse, request: Request) {
     this.request = request
     this.code = response.code as HttpStatusCode
-    this.headers = response.headers
+    this.headers = JSON.parse(response.headers) as Array<ArkHeader>
     let responseBody: ResponseBody | undefined
     if (response.body) {
       responseBody = new ResponseBody(response.body)

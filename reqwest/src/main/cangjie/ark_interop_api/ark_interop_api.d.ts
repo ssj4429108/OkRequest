@@ -12,7 +12,7 @@ export declare class ArkResponse {
     code: number
     body: ArkResponseBody | undefined
     message: string
-    headers: Array<ArkHeader> | undefined
+    headers: string | undefined
     isSuccess: boolean
 }
 
@@ -34,7 +34,7 @@ export declare interface CustomLib {
     sendSync(client: ArkHttpClient, request: ArkRequest): ArkResponse | undefined
     cancel(request: ArkRequest): void
     ArkRequest: {new (url: string, method: string | undefined, headers: Array<ArkHeader> | undefined, mediaType: string, body: ArrayBuffer | undefined, dns: string | undefined): ArkRequest}
-    ArkResponse: {new (url: string, protocol: string, code: number, headers: Array<ArkHeader> | undefined, body: ArkResponseBody | undefined, message: string): ArkResponse}
+    ArkResponse: {new (url: string, protocol: string, code: number, headers: string | undefined, body: ArkResponseBody | undefined, message: string): ArkResponse}
     ArkResponseBody: {new (contentType: string, contentLength: number, data: ArrayBuffer | undefined): ArkResponseBody}
     ArkTlsConfig: {new (verifyMode: string, pem: string | undefined): ArkTlsConfig}
 }

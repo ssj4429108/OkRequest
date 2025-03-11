@@ -29,6 +29,8 @@ internal import std.sync.*
 internal import std.time.*
 internal import std.unicode.*
 internal import crypto.crypto.*
+import encoding.json.stream.JsonSerializable
+import encoding.json.stream.JsonWriter
 
 let METHOD_GET = "GET"
 
@@ -280,7 +282,7 @@ extend Header {
     }
 }
 
-public class Header <: Iterable<(String, ArrayList<String>)> {
+public class Header <: Iterable<(String, ArrayList<String>)> & JsonSerializable {
     let fields = HashMap<String, ArrayList<String>>()
     let httpHeaders = HttpHeaders()
 
@@ -328,16 +330,30 @@ public class Header <: Iterable<(String, ArrayList<String>)> {
             map<(String, Collection<String>), (String, ArrayList<String>)> {kv => (kv[0], kv[1] |> collectArrayList)} |>
             concat(fields)
     }
+
+    public func toJson(w: JsonWriter): Unit {
+        w.startArray()
+        iterator().forEach { header =>
+            let name = header[0]
+            let value = String.join(header[1].toArray(), delimiter: ";")
+            w.startObject()
+            w.writeName('name').writeValue(name)
+            w.writeName('value').writeValue(value)
+            w.endObject()
+        }
+        w.endArray()
+        w.flush()
+    }
 }
 
 foreign func htons(port: UInt16): UInt16
+
 public func portTrans(port: UInt16): UInt16 {
     // unsafe { htons(port) }
     port
 }
 
 let LOG: SimpleLogger = SimpleLogger()
-
 
 extend String {
     func equals(s: String): Bool {
@@ -362,6 +378,7 @@ extend String {
         this.indexOf(char.toString(), begin)
     }
 }
+
 extend UInt8 {
     operator func ==(char: Rune): Bool {
         UInt32(this) == UInt32(char)
