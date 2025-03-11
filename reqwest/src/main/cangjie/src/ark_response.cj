@@ -95,8 +95,6 @@ extend Response {
         if (!respHeaders.iterator().isEmpty()) {
             let stream = ByteArrayStream()
             let writer = JsonWriter(stream)
-            let fmtCfg = WriteConfig.pretty
-            writer.writeConfig = fmtCfg
             writer.writeValue(this.getHeaders())
             headers = Some(String.fromUtf8(stream.readToEnd()))
         }
