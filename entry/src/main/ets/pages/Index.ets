@@ -12,7 +12,10 @@ const config: OkConfig = {
     verifyMode: VerifyMode.ALL,
     pem: undefined
   },
-  dns: undefined
+  dns: undefined,
+  cacheControl: {
+
+  }
 }
 
 config.requestInterceptors.push({
@@ -35,6 +38,7 @@ config.responseInterceptors.push({
 struct Index {
   @State message: string = 'Hello World';
   client = new OkHttpClient(config)
+
 
   build() {
     RelativeContainer() {

@@ -7,7 +7,7 @@
   "license": "",
   "dependencies": {
     "@axzo/ok-request": "file:./../reqwest",
-//    "@axzo/ok-request": "1.0.4"
+//    "@axzo/ok-request": "1.0.9"
 //    "reqwest": "1.0.0"
   }
 }

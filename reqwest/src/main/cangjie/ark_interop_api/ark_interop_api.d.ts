@@ -27,8 +27,12 @@ export declare class ArkHeader {
 export declare class ArkHttpClient {
 }
 
+export declare class ArkCacheControl {
+}
+
 export declare interface CustomLib {
-    ArkHttpClient: {new (timeout: number, maxConnections: number, protocols: Array<string> | undefined, arkTlsConfig: ArkTlsConfig | undefined): ArkHttpClient}
+    ArkCacheControl: {new (noCacheBuild: boolean, noStoreBuild: boolean, maxAgeSeconds: number, maxStaleSeconds: number, minFreshSeconds: number, onlyIfCachedBuild: boolean, noTransformBuild: boolean, immutableBuild: boolean): ArkCacheControl}
+    ArkHttpClient: {new (timeout: number, maxConnections: number, protocols: Array<string> | undefined, arkTlsConfig: ArkTlsConfig | undefined, arkCacheControl: ArkCacheControl | undefined): ArkHttpClient}
     ArkHeader: {new (name: string, value: string): ArkHeader}
     send(client: ArkHttpClient, request: ArkRequest): Promise<ArkResponse | undefined>
     sendSync(client: ArkHttpClient, request: ArkRequest): ArkResponse | undefined

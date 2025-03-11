@@ -15,5 +15,6 @@ export {
   VerifyMode,
   TlsConfig,
   Protocol,
-  Dns
+  Dns,
+
 } from './src/main/ets/http/typings'

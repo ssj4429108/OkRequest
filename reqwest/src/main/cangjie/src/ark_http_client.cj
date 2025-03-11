@@ -18,8 +18,9 @@ public class ArkHttpClient {
 
     @Interop[ArkTS, Invisible]
     let realClient: HttpClient
+    let cacheControl: Option<ArkCacheControl>
 
-    public init(timeout: Int64, maxConnections: Int64, protocols: Option<JSArrayEx<String>>, arkTlsConfig: Option<ArkTlsConfig>) {
+    public init(timeout: Int64, maxConnections: Int64, protocols: Option<JSArrayEx<String>>, arkTlsConfig: Option<ArkTlsConfig>, arkCacheControl: Option<ArkCacheControl>) {
         let connectionPool = ConnectionPool(maxIdleConnections: maxConnections)
         let builder = HttpClient.builder()
             .connectTimeout(Duration.second * timeout)
@@ -67,8 +68,7 @@ public class ArkHttpClient {
             case Some(tlsConfig) => builder.tlsConfig(tlsConfig)
             case None => ()
         }
-
-
+        this.cacheControl = arkCacheControl
         realClient = builder
             .build()
     }
@@ -78,42 +78,3 @@ public class ArkHttpClient {
         return realClient
     }
 }
-
-
-//public interface IResponseBodyIterceptor {
-//    func intercept(body: ArkResponseBody): Unit
-//}
-//
-//public interface IRequestHeaderIterceptor {
-//    func intercept(header: JSHashMapEx<String, String>): Unit
-//}
-//
-//public class ResponseBodyIterceptor <: Interceptor {
-//	let interceptor: IResponseBodyIterceptor
-//    public init(interceptor: IResponseBodyIterceptor) {
-//    	this.interceptor = interceptor
-//    }
-//    public func intercept(chain: Chain): Response {
-//        let request = chain.getRequest()
-//        let response = chain.proceed(request)
-//        let arkResponse = response.toArkResponse()
-//        arkResponse.getBody()
-//        interceptor.intercept(arkResponse.get)
-//        return response.newBuilder().body(body: Option<ResponseBody>).build()
-//    }
-//}
-//
-//public class RequestHeaderInterceptor <: Interceptor {
-//    let interceptor: IRequestHeaderIterceptor
-//    public init(interceptor: IRequestHeaderIterceptor) {
-//    	this.interceptor = interceptor
-//    }
-//    public func intercept(chain: Chain): Response {
-//        let request = chain.getRequest()
-//        request.newBuilder()
-//        return chain.proceed(request)
-////        let response =  chain.proceed(chain.getRequest())
-////        response.toArkResponse()
-////        return response.newBuilder().body(body: Option<ResponseBody>).build()
-//    }
-//}

@@ -18,7 +18,16 @@ export class OkHttpClient {
     if (config.tlsConfig) {
       tlsConfig = new this.baseApi.ArkTlsConfig(config.tlsConfig.verifyMode.valueOf(), config.tlsConfig.pem)
     }
-    this.client = new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig)
+    let cacheControl = undefined
+    if (config.cacheControl) {
+      cacheControl =
+        new this.baseApi.ArkCacheControl(config.cacheControl.noCacheBuild, config.cacheControl.noStoreBuild,
+          config.cacheControl.maxAgeSeconds ?? -1, config.cacheControl.maxStaleSeconds ?? -1,
+          config.cacheControl.minFreshSeconds ?? -1, config.cacheControl.onlyIfCachedBuild,
+          config.cacheControl.noTransformBuild, config.cacheControl.immutableBuild)
+    }
+    this.client =
+      new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig, cacheControl)
     this.config = config
   }
 
@@ -92,7 +101,7 @@ export class OkHttpClient {
       request.url,
       request.method?.valueOf() || undefined,
       request.headers,
-      request.mediaType? request.mediaType : "application/json; charset=utf-8",
+      request.mediaType ? request.mediaType : "application/json; charset=utf-8",
       bytes,
       dns
     )
@@ -117,14 +126,16 @@ export class OkHttpClient {
     return result
   }
 
-  protected  async send(request: Request, realRequest: ArkRequest): Promise<Response | undefined> {
+  protected async send(request: Request, realRequest: ArkRequest): Promise<Response | undefined> {
     let result: ArkResponse | undefined
     try {
       result = await this.baseApi!.send(this.client, realRequest)
     } catch (e) {
       throw e
     }
-    if (!result) return undefined
+    if (!result) {
+      return undefined
+    }
     let response = new Response(result, request)
     if (!response.successfully) {
       throw new HttpError(request, response.code, response.body)

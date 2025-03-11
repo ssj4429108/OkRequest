@@ -32,7 +32,7 @@ public class ArkHeader <: ToString {
 @Interop[ArkTS, Async]
 public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
     request.requestFuture = spawn {
-        let realRequest = request.buildRealRequest()
+        let realRequest = request.buildRealRequest(client.cacheControl)
         let response = try {
             client.getRealClient().newCall(realRequest).execute()
         } catch (e: Exception) {
@@ -53,7 +53,7 @@ public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse
 
 @Interop[ArkTS]
 public func sendSync(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
-    let realRequest = request.buildRealRequest()
+    let realRequest = request.buildRealRequest(client.cacheControl)
     let response = try {
         client.getRealClient().newCall(realRequest).execute()
     } catch (e: Exception) {
@@ -169,7 +169,7 @@ public class ArkRequest {
         requestBuilder.method(method, body: realBody)
     }
     @Interop[ArkTS, Invisible]
-    public func buildRealRequest(): Request {
+    public func buildRealRequest(cacheControl: Option<ArkCacheControl>): Request {
         let requestBuilder = Request.builder()
         let url = URL.parse(url)
         requestBuilder.url(url)
@@ -202,6 +202,30 @@ public class ArkRequest {
                 if (!headers.isEmpty()) {
                     requestBuilder.header(headerBuilder)
                 }
+            case None => ()
+        }
+        match (cacheControl) {
+        	case Some(arkCacheControl) =>
+                let cacheBuilder = CacheControlBuilder()
+                if (arkCacheControl.immutableBuild) {
+                    cacheBuilder.immutable()
+                }
+                if (arkCacheControl.noTransformBuild) {
+                    cacheBuilder.noTransform()
+                }
+                if (arkCacheControl.onlyIfCachedBuild) {
+                    cacheBuilder.onlyIfCached()
+                }
+                if (arkCacheControl.noStoreBuild) {
+                    cacheBuilder.noStore()
+                }
+                if (arkCacheControl.noTransformBuild) {
+                    cacheBuilder.noTransform()
+                }
+                cacheBuilder.minFresh(arkCacheControl.minFreshSeconds)
+                cacheBuilder.maxAge(arkCacheControl.maxAgeSeconds)
+                cacheBuilder.maxStale(arkCacheControl.maxStaleSeconds)
+                requestBuilder.cacheControl(cacheBuilder.build())
             case None => ()
         }
         return requestBuilder.build()

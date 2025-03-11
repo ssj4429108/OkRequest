@@ -38,6 +38,33 @@ export interface Dns {
   lookup: (domain: string) => Array<socket.NetAddress>
 }
 
+export interface CacheControl {
+  noCacheBuild?: boolean | false
+
+  noStoreBuild?: boolean | false
+
+  maxAgeSeconds?: number | -1
+
+  maxStaleSeconds?: number | -1
+
+  minFreshSeconds?: number | -1
+
+  onlyIfCachedBuild?: boolean | false
+
+  noTransformBuild?: boolean | false
+
+  immutableBuild?: boolean | false
+}
+
+export class ForceCache implements CacheControl {
+  onlyIfCachedBuild: true
+  maxStaleSeconds: 2_147_483_647
+}
+
+export class ForceNetwork implements CacheControl {
+  noCacheBuild: true
+}
+
 export interface OkConfig {
   requestInterceptors: RequestInterceptor[]
   responseInterceptors: ResponseInterceptor[]
@@ -50,6 +77,8 @@ export interface OkConfig {
   tlsConfig: TlsConfig | undefined
 
   dns: Dns | undefined
+
+  cacheControl?: CacheControl
 }
 
 export class Request {
