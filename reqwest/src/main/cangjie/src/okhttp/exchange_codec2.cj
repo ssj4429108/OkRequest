@@ -7,6 +7,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The class is Http2ExchangeCodec

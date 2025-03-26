@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The class is MultipartBody
@@ -69,7 +70,7 @@ public class MultipartBody <: RequestBody {
     }
 
     public func writeTo(sink: Sink): Unit {
-        writeOrCountBytes(sink)
+        writeOrCountBytes(Okio.buffer(sink))
     }
 
     private func writeOrCountBytes(arr: ByteArrayStream, write: Bool): Int64 {
@@ -136,7 +137,7 @@ public class MultipartBody <: RequestBody {
         return byteCount
     }
 
-    private func writeOrCountBytes(sink: Sink): Unit {
+    private func writeOrCountBytes(sink: BufferedSink): Unit {
         for (p in 0..parts.size) {
             let part: Part = parts[p]
             let headers = part.headers

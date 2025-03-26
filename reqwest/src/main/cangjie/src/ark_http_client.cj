@@ -18,9 +18,7 @@ public class ArkHttpClient {
 
     @Interop[ArkTS, Invisible]
     let realClient: HttpClient
-    let cacheControl: Option<ArkCacheControl>
-
-    public init(timeout: Int64, maxConnections: Int64, protocols: Option<JSArrayEx<String>>, arkTlsConfig: Option<ArkTlsConfig>, arkCacheControl: Option<ArkCacheControl>) {
+    public init(timeout: Int64, maxConnections: Int64, protocols: Option<JSArrayEx<String>>, arkTlsConfig: Option<ArkTlsConfig>) {
         let connectionPool = ConnectionPool(maxIdleConnections: maxConnections)
         let builder = HttpClient.builder()
             .connectTimeout(Duration.second * timeout)
@@ -68,13 +66,14 @@ public class ArkHttpClient {
             case Some(tlsConfig) => builder.tlsConfig(tlsConfig)
             case None => ()
         }
-        this.cacheControl = arkCacheControl
         realClient = builder
             .build()
+
     }
 
     @Interop[ArkTS, Invisible]
     public func getRealClient(): HttpClient {
+
         return realClient
     }
 }

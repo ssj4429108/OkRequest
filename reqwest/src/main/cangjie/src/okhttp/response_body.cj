@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The class is ResponseBody
@@ -16,7 +17,7 @@ package ohos_app_cangjie_OkRequest.okhttp
  */
 public open class ResponseBody <: Resource {
     /* var member source type is StringStream */
-    var source: Source
+    var source: BufferedSource
 
     /* var member contentType type is String */
     var contentTypeString: String
@@ -32,7 +33,7 @@ public open class ResponseBody <: Resource {
      * @param source of StringStream
      * @since 0.29.3
      */
-    public init(contentType: String, contentLength: Int64, source: Source) {
+    public init(contentType: String, contentLength: Int64, source: BufferedSource) {
         this.source = source
         this.contentTypeString = contentType
         this.contentLength = contentLength
@@ -44,7 +45,7 @@ public open class ResponseBody <: Resource {
      * @return Type of StringStream
      * @since 0.29.3
      */
-    public func getSource(): Source {
+    public func getSource(): BufferedSource {
         return source
     }
 
@@ -75,18 +76,10 @@ public open class ResponseBody <: Resource {
     }
 
     public func getString(): String {
-        let stream = ByteArrayStream()
-        try (r = source) {
-            while (source.read(stream, 4096) > 0) {}
-        } catch (e: EOFException) {}
-        return String.fromUtf8(stream.readToEnd())
+        return source.readByteString().toString()
     }
 
     public func getBytes(): Array<Byte> {
-        let stream = ByteArrayStream()
-        try (r = source) {
-            while (source.read(stream, 4096) > 0) {}
-        } catch (e: EOFException) {}
-        return stream.readToEnd()
+        return source.readByteArray()
     }
 }

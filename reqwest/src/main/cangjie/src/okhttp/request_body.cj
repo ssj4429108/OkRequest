@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The class is RealRequestBody
@@ -56,7 +57,9 @@ public class RealRequestBody <: RequestBody {
     }
 
     public func writeTo(sink: Sink): Unit {
-        sink.write(bytes)
+        let buffer = Buffer()
+        buffer.write(bytes)
+        sink.write(buffer, buffer.size)
     }
 
     /**

@@ -7,6 +7,8 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
+import ohos.hilog.Hilog
 
 let PREFACE: String = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
@@ -55,8 +57,8 @@ public class H2Connection {
 
     public init(
         socket: SocketClient,
-        sink: BufferedOutputStream<OutputStream>,
-        source: OkBuffer,
+        sink: BufferedSink,
+        source: BufferedSource,
         listener!: Option<Connection> = Option<Connection>.None
     ) {
         this.socket = socket
@@ -180,7 +182,7 @@ public class H2Connection {
      * @param length of Int64
      * @since 0.34.3
      */
-    public func writeData(streamId: UInt32, outFinished: Bool, buffer: ByteArrayStream, length: Int64) {
+    public func writeData(streamId: UInt32, outFinished: Bool, buffer: Buffer, length: Int64) {
         var byteCount = length
         if (byteCount == 0) {
             // Empty data frames are not flow-controlled.
@@ -226,7 +228,7 @@ public class H2Connection {
         }
     }
 
-    func data(inFinished: Bool, streamId: UInt32, source: OkBuffer, length: Int64) {
+    func data(inFinished: Bool, streamId: UInt32, source: BufferedSource, length: Int64) {
         let dataStream = streamMap[streamId]
         dataStream.receiveData(source, length)
         if (inFinished) {
@@ -459,6 +461,7 @@ public class H2Connection {
      * @since 0.34.3
      */
     public func flush(): Unit {
+        Hilog.info(3, "ok-request", "flush1115")
         writer.flush()
     }
 }

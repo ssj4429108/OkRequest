@@ -8,6 +8,8 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
+import ohos.hilog.Hilog
 
 let ENTRY_COUNT: Int64 = 2
 let ENTRY_METADATA: Int64 = 0
@@ -199,6 +201,7 @@ public class Cache <: Resource {
     }
 
     public func flush(): Unit {
+Hilog.info(3, "ok-request", "flush1112")
         cache.flush()
     }
 
@@ -234,8 +237,8 @@ class CacheIterator <: Iterator<String> {
             match (delegate.next()) {
                 case None => return Option<String>.None
                 case Some(snapshot) => try {
-                    let source = snapshot.getSource(ENTRY_METADATA)
-                    let str = source.readUtf8Line()
+                    let source = Okio.buffer(snapshot.getSource(ENTRY_METADATA))
+                    let str = source.readUtf8LineStrict()
                     snapshot.close()
                     return str
                 } catch (e: FSException | EOFException) {
@@ -274,15 +277,16 @@ class CacheEntry {
         this.receivedResponseMillis = response.getReceivedResponseAtMillis()
     }
 
-    init(source: OkBuffer) {
+    init(rawSource: Source) {
+        let source = Okio.buffer(rawSource)
         try {
             let urlString = source.readUtf8Line()
-            url = urlString
-            requestMethod = source.readUtf8Line()
+            url = urlString.getOrThrow()
+            requestMethod = source.readUtf8Line().getOrThrow()
             let varyRequestHeaderLineCount: Int64
 
             try {
-                varyRequestHeaderLineCount = Int64.parse(source.readUtf8Line())
+                varyRequestHeaderLineCount = Int64.parse(source.readUtf8Line().getOrThrow())
             } catch (e: Exception) {
                 throw HttpException(e.message)
             }
@@ -290,11 +294,11 @@ class CacheEntry {
             let varyHeader: Header = Header()
 
             for (_ in 0..varyRequestHeaderLineCount) {
-                addLenient(varyHeader, source.readUtf8Line())
+                addLenient(varyHeader, source.readUtf8Line().getOrThrow())
             }
 
             this.varyHeaders = varyHeader
-            let statusLine: StatusLine = StatusLine.parse(source.readUtf8Line())
+            let statusLine: StatusLine = StatusLine.parse(source.readUtf8Line().getOrThrow())
             protocol = statusLine.protocol
             code = statusLine.code
             message = statusLine.message
@@ -302,13 +306,13 @@ class CacheEntry {
             let responseHeaderLineCount: Int64
 
             try {
-                responseHeaderLineCount = Int64.parse(source.readUtf8Line())
+                responseHeaderLineCount = Int64.parse(source.readUtf8Line().getOrThrow())
             } catch (e: Exception) {
                 throw HttpException(e.message)
             }
 
             for (_ in 0..responseHeaderLineCount) {
-                addLenient(responseHeader, source.readUtf8Line())
+                addLenient(responseHeader, source.readUtf8Line().getOrThrow())
             }
 
             let sendRequestMillisString: String = responseHeader.getString(SENT_MILLIS).getOrThrow()
@@ -343,7 +347,7 @@ class CacheEntry {
     }
 
     public func writeTo(editor: Editor): Unit {
-        let sink = editor.newSink(ENTRY_METADATA)
+        let sink = Okio.buffer(editor.newSink(ENTRY_METADATA))
         sink.write(url.toUtf8Array())
         sink.write("\n".toUtf8Array())
         sink.write(requestMethod.toUtf8Array())
@@ -402,7 +406,7 @@ class CacheResponseBody <: ResponseBody {
                 case Some(v) => v
                 case None => -1
             },
-            snapshot.getSource(ENTRY_BODY)
+            Okio.buffer(snapshot.getSource(ENTRY_BODY))
         )
         this.snapshot = snapshot
     }
@@ -419,12 +423,15 @@ class CacheRequest <: Sink {
         this.cache = cache
         this.cacheOut = editor.newSink(ENTRY_BODY)
     }
-
-    public func write(bytes: Array<Byte>): Unit {
-        this.cacheOut.write(bytes)
+    
+    public func write(source: Buffer, byteCount: Int64): Unit {
+        Hilog.info(3, "ok-request", "write1")
+        this.cacheOut.write(source, byteCount)    
     }
+    
 
     public func flush(): Unit {
+        Hilog.info(3, "ok-request", "flush1113")
         this.cacheOut.flush()
     }
 
@@ -455,6 +462,18 @@ class CacheRequest <: Sink {
         try {
             editor.abort()
         } catch (ignored: IOException | HttpException) {}
+    }
+
+    public func toString(): String {
+        return "CacheRequest"
+    }
+
+    public func isClosed(): Bool {
+        return false
+    }
+
+    public func timeout(): Timeout {
+        return Timeout.NONE
     }
 }
 

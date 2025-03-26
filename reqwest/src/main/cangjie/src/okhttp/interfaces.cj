@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The interface is ExchangeCodec
@@ -36,17 +37,7 @@ public interface ExchangeCodec {
     func finishRequest(): Unit
 }
 
-public interface Sink {
-    func write(bytes: Array<Byte>): Unit
-    func flush(): Unit
-    func close(): Unit
-}
 
-public interface Source <: Resource {
-    func read(bytes: ByteArrayStream, byteCount: Int64): Int64
-    func close(): Unit
-    func isClosed(): Bool
-}
 
 /**
  * The interface is Interceptor

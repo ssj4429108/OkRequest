@@ -1,13 +1,5 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2022-2024. All rights resvered.
- */
-
-/**
- * @file
- * The file declares the Source impls.
- */
-
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 abstract class AbstractSource <: Source {
     protected var closed: Bool = false
@@ -17,12 +9,16 @@ abstract class AbstractSource <: Source {
         this.exchangeCode = exchange
     }
 
-    public open func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
-        return exchangeCode.source.read(bytes, byteCount)
+    public open func read(sink: Buffer, byteCount: Int64): Int64 {
+        return exchangeCode.source.read(sink, byteCount)
     }
 
     public open func isClosed(): Bool {
         return closed
+    }
+
+    public open func timeout(): Timeout {
+        return ForwardingTimeout(exchangeCode.source.timeout())
     }
 }
 
@@ -38,7 +34,7 @@ class FixedLengthSource <: AbstractSource {
         }
     }
 
-    public func read(bytes: ByteArrayStream, count: Int64): Int64 {
+    public func read(sink: Buffer, count: Int64): Int64 {
         var byteCount = count
 
         if (isClosed()) {
@@ -53,16 +49,13 @@ class FixedLengthSource <: AbstractSource {
             byteCount = bytesRemaining
         }
 
-        let read = super.read(bytes, byteCount)
-
+        let read = super.read(sink, byteCount)
         if (read == -1) {
             exchangeCode.getConnection().noExchanges()
             exchangeCode.responseBodyComplete()
             throw ProtocolException("unexpected end of stream")
         }
-
         bytesRemaining -= read
-
         if (bytesRemaining == 0) {
             exchangeCode.responseBodyComplete()
         }
@@ -81,6 +74,10 @@ class FixedLengthSource <: AbstractSource {
 
         closed = true
     }
+
+    public func toString(): String {
+        return "FixedLengthSource"
+    }
 }
 
 class UnknownLengthSource <: AbstractSource {
@@ -90,7 +87,7 @@ class UnknownLengthSource <: AbstractSource {
         super(exchange)
     }
 
-    public func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
+    public func read(sink: Buffer, byteCount: Int64): Int64 {
         if (isClosed()) {
             throw IllegalStateException("closed")
         }
@@ -100,7 +97,7 @@ class UnknownLengthSource <: AbstractSource {
         }
 
         let buffer = exchangeCode.source
-        let read = buffer.read(bytes, byteCount)
+        let read = buffer.read(sink, byteCount)
 
         if (read == -1) {
             inputExhausted = true
@@ -121,6 +118,9 @@ class UnknownLengthSource <: AbstractSource {
 
         closed = true
     }
+    public func toString(): String {
+        return "UnknownLengthSource"
+    }
 }
 
 class ChunkedSource <: Source {
@@ -136,7 +136,7 @@ class ChunkedSource <: Source {
         this.exchangeCode = exchange
     }
 
-    public func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
+    public func read(bytes: Buffer, byteCount: Int64): Int64 {
         if (isClosed()) {
             throw IllegalStateException("closed")
         }
@@ -166,10 +166,10 @@ class ChunkedSource <: Source {
 
     private func readChunkSize() {
         if (bytesRemainingInChunk != NO_CHUNK_YET) {
-            exchangeCode.source.skipBuffer(2)
+            exchangeCode.source.readUtf8LineStrict()
         }
 
-        let chunkedLength: String = exchangeCode.source.readUtf8LineStrict().trim()
+        let chunkedLength: String = exchangeCode.source.readUtf8LineStrict().getOrDefault{""}.trim()
 
         if (chunkedLength.size != 0) {
             match (HexStringToUInt64(chunkedLength.toUtf8Array())) {
@@ -199,8 +199,16 @@ class ChunkedSource <: Source {
         closed = true
     }
 
+    public open func timeout(): Timeout {
+        return ForwardingTimeout(exchangeCode.source.timeout())
+    }
+
     public func isClosed(): Bool {
         return closed
+    }
+
+    public func toString(): String {
+        return "ChunkedSource"
     }
 }
 
@@ -221,7 +229,7 @@ class ResponseBodySource <: Source {
         }
     }
 
-    public func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
+    public func read(bytes: Buffer, byteCount: Int64): Int64 {
         if (isClosed()) {
             throw IllegalStateException("closed")
         }
@@ -274,6 +282,13 @@ class ResponseBodySource <: Source {
         completed = true
         exchange.bodyComplete(bytesReceived, true, false, e)
     }
+
+    public open func timeout(): Timeout {
+        return ForwardingTimeout(source.timeout())
+    }
+    public func toString(): String {
+        return "ResponseBodySource"
+    }
 }
 
 class FramingSource <: Source {
@@ -281,15 +296,16 @@ class FramingSource <: Source {
     var trailers: Option<Header> = Option<Header>.None
     var stream: Option<H2Stream> = Option<H2Stream>.None
     var maxByteCount: Int64
-    let readBuffer = ByteArrayStream()
-    let receiveBuffer = ByteArrayStream()
+    let readBuffer = Buffer()
+    let receiveBuffer = Buffer()
     var closed = false
+    
 
     public init(maxByteCount: Int64) {
         this.maxByteCount = maxByteCount
     }
 
-    public func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
+    public func read(bytes: Buffer, byteCount: Int64): Int64 {
         let h2Stream = stream.getOrThrow()
 
         if (byteCount < 0) {
@@ -300,14 +316,17 @@ class FramingSource <: Source {
             var readBytesDelivered = -1
             var errorExceptionToDeliver: Bool = false
             synchronized(h2Stream.mutex) {
+                if (h2Stream.doReadTimeout()) {
+
+                }
                 if (has(h2Stream.errorCode)) {
                     errorExceptionToDeliver = true
                 }
 
                 if (isClosed()) {
                     throw HttpException("stream closed")
-                } else if (readBuffer.remainLength > 0) {
-                    let arr = Array<Byte>(min(byteCount, readBuffer.remainLength), item: 0)
+                } else if (readBuffer.size > 0) {
+                    let arr = Array<Byte>(min(byteCount, readBuffer.size), item: 0)
                     readBytesDelivered = readBuffer.read(arr)
                     bytes.write(arr)
                     h2Stream.unacknowledgedBytesRead += readBytesDelivered
@@ -339,24 +358,24 @@ class FramingSource <: Source {
         return -1
     }
 
-    func receive(source: OkBuffer, length: Int64) {
+    func receive(source: BufferedSource, length: Int64) {
         var byteCount = length
         while (byteCount > 0) {
             var finished: Bool
             var flowControlError: Bool
             synchronized(stream.getOrThrow().mutex) {
                 finished = this.finished
-                flowControlError = byteCount + readBuffer.remainLength > maxByteCount
+                flowControlError = byteCount + readBuffer.size > maxByteCount
             }
 
             if (flowControlError) {
-                source.skipBuffer(byteCount)
+                source.skip(byteCount)
                 stream.getOrThrow().closeLater(ErrorCode.FLOW_CONTROL_ERROR)
                 return
             }
 
             if (finished) {
-                source.skipBuffer(byteCount)
+                source.skip(byteCount)
                 return
             }
 
@@ -370,11 +389,11 @@ class FramingSource <: Source {
             var bytesDiscarded = 0
             synchronized(stream.getOrThrow().mutex) {
                 if (isClosed()) {
-                    bytesDiscarded = receiveBuffer.remainLength
+                    bytesDiscarded = receiveBuffer.size
                     receiveBuffer.clear()
                 } else {
-                    let wasEmpty = readBuffer.remainLength == 0
-                    readBuffer.write(receiveBuffer.readToEnd())
+                    let wasEmpty = readBuffer.size == 0
+                    readBuffer.writeAll(receiveBuffer)
                     if (wasEmpty) {
                         let mu = stream.getOrThrow().mutex
                         mu.notifyAll()
@@ -392,7 +411,7 @@ class FramingSource <: Source {
         let bytesDiscarded: Int64
         synchronized(stream.getOrThrow().mutex) {
             closed = true
-            bytesDiscarded = readBuffer.remainLength
+            bytesDiscarded = readBuffer.size
             readBuffer.clear()
             stream.getOrThrow().mutex.notifyAll()
         }
@@ -407,6 +426,13 @@ class FramingSource <: Source {
     public func isClosed(): Bool {
         return closed
     }
+
+    public open func timeout(): Timeout {
+        return ForwardingTimeout(stream.getOrThrow().source.timeout())
+    }
+    public func toString(): String {
+        return "ResponseBodySource"
+    }
 }
 
 class CacheWritingSource <: Source {
@@ -419,12 +445,12 @@ class CacheWritingSource <: Source {
         this.cacheRequest = cacheRequest
     }
 
-    public func read(bytes: ByteArrayStream, byteCount: Int64): Int64 {
+    public func read(sink: Buffer, byteCount: Int64): Int64 {
         var bytesRead: Int64
         let cacheBody = RealBufferSink(cacheRequest)
 
         try {
-            bytesRead = source.read(bytes, byteCount)
+            bytesRead = source.read(sink, byteCount)
         } catch (e: IOException | HttpException) {
             if (!cacheRequestClosed) {
                 cacheRequestClosed = true
@@ -441,9 +467,8 @@ class CacheWritingSource <: Source {
 
             return -1
         }
-
-        cacheBody.getBuffer().write(bytes.bytes())
-        cacheBody.flush()
+        sink.copyTo(cacheBody.buffer(), sink.size - bytesRead, bytesRead)
+        cacheBody.emitCompleteSegments()
         return bytesRead
     }
 
@@ -458,5 +483,12 @@ class CacheWritingSource <: Source {
 
     public func isClosed(): Bool {
         return source.isClosed()
+    }
+
+    public open func timeout(): Timeout {
+        return ForwardingTimeout(source.timeout())
+    }
+    public func toString(): String {
+        return "CacheWritingSource"
     }
 }

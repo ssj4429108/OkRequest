@@ -47,3 +47,9 @@
 
 ### 1.0.10 / 2025-3-11
 - 新增cacheControl
+
+### 1.0.11 / 2025-3-12
+- 设置cacheControl api移至requestBuilder
+
+### 1.0.12 / 2025-3-13
+- cacheControl 默认值-1异常问题修复

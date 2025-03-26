@@ -8,6 +8,8 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
+import ohos.hilog.Hilog
 
 class DiskLruCache {
     let fileSystem: FileSystem
@@ -88,7 +90,7 @@ class DiskLruCache {
                 case None => return Option<Snapshot>.None
                 case Some(v) =>
                     redundantOpCount++
-                    let jw = journalWriter.getOrThrow()
+                    let jw = Okio.buffer(journalWriter.getOrThrow())
                     jw.write(READ.toUtf8Array())
                     jw.write(" ".toUtf8Array())
                     jw.write(key.toUtf8Array())
@@ -124,7 +126,7 @@ class DiskLruCache {
                 cleanUp()
                 return None
             }
-            let jw = journalWriter.getOrThrow()
+            let jw = Okio.buffer(journalWriter.getOrThrow())
             jw.write(DIRTY.toUtf8Array())
             jw.write(" ".toUtf8Array())
             jw.write(key.toUtf8Array())
@@ -190,7 +192,7 @@ class DiskLruCache {
         }
 
         redundantOpCount++
-        let jw = journalWriter.getOrThrow()
+        let jw = Okio.buffer(journalWriter.getOrThrow())
         jw.write(REMOVE.toUtf8Array())
         jw.write(" ".toUtf8Array())
         jw.write(entry.key.toUtf8Array())
@@ -320,11 +322,11 @@ class DiskLruCache {
     }
 
     private func readJournal() {
-        try (source = fileSystem.source(JOURNAL_FILE)) {
-            let magic = source.readUtf8Line()
-            let version = source.readUtf8Line()
-            let valueCountString = source.readUtf8Line()
-            let blank = source.readUtf8Line()
+        try (source = Okio.buffer(fileSystem.source(JOURNAL_FILE))) {
+            let magic = source.readUtf8Line().getOrDefault{""}
+            let version = source.readUtf8Line().getOrDefault{""}
+            let valueCountString = source.readUtf8Line().getOrDefault{""}
+            let blank = source.readUtf8Line().getOrDefault{""}
 
             if (!MAGIC.equals(magic) || !VERSION_1.equals(version) || !"${valueCount}".equals(valueCountString) ||
                 !"".equals(blank)) {
@@ -335,7 +337,7 @@ class DiskLruCache {
             let content = StringBuilder("${magic}\n${version}\n${valueCountString}\n\n")
             while (true) {
                 try {
-                    let s = source.readUtf8Line()
+                    let s = source.readUtf8Line().getOrDefault{""}
                     content.append(s)
                     content.append("\n")
                     readJournalLine(s)
@@ -448,6 +450,7 @@ class DiskLruCache {
     }
 
     func flush(): Unit {
+        Hilog.info(3, "ok-request", "flush1114")
         synchronized(lock) {
             if (!initialized) {
                 return
@@ -631,7 +634,7 @@ class Editor {
 
             diskLruCache.redundantOpCount++
             entry.currentEditor = None
-            let jw = diskLruCache.journalWriter.getOrThrow()
+            let jw = Okio.buffer(diskLruCache.journalWriter.getOrThrow())
             if (entry.readable || success) {
                 entry.readable = true
                 jw.write(CLEAN.toUtf8Array())
@@ -717,7 +720,7 @@ class Entry {
 
     func snapshot(): Option<Snapshot> {
         let cl = lengths.clone()
-        let arr: ArrayList<OkBuffer> = ArrayList<OkBuffer>()
+        let arr: ArrayList<Source> = ArrayList<Source>()
         try {
             for (i in 0..diskLruCache.valueCount) {
                 arr.append(diskLruCache.fileSystem.source(cleanFiles[i]))
@@ -753,8 +756,9 @@ class Entry {
 
     func writeLengths(writer: Sink): Unit {
         for (i in 0..lengths.size) {
-            writer.write(" ".toUtf8Array())
-            writer.write("${lengths[i]}".toUtf8Array())
+            let realSink = Okio.buffer(writer)
+            realSink.write(ByteString(" ".toUtf8Array()))
+            realSink.write(ByteString("${lengths[i]}".toUtf8Array()))
         }
     }
 }
@@ -762,14 +766,14 @@ class Entry {
 class Snapshot <: Resource {
     private let key: String
     private let sequenceNumber: Int64
-    private let sources: Array<OkBuffer>
+    private let sources: Array<Source>
     private let lengths: Array<Int64>
     private let diskLruCache: DiskLruCache
 
     init(
         key: String,
         sequenceNumber: Int64,
-        sources: Array<OkBuffer>,
+        sources: Array<Source>,
         lengths: Array<Int64>,
         diskLruCache: DiskLruCache
     ) {
@@ -780,7 +784,7 @@ class Snapshot <: Resource {
         this.lengths = lengths
     }
 
-    public func getSource(index: Int64): OkBuffer {
+    public func getSource(index: Int64): Source {
         return sources[index]
     }
 
@@ -807,10 +811,10 @@ class FileSystem {
         this.directory = directory
     }
 
-    public func source(name: String): OkBuffer {
+    public func source(name: String): Source {
         let file = File(directory.info.path.join(name), Open(true, true))
         closeFuncs.append({=> file.close()})
-        return OkBuffer(file)
+        return Okio.source(file)
     }
 
     public func sink(name: String): Sink {

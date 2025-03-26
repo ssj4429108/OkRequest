@@ -1,6 +1,6 @@
 {
   "name": "@axzo/ok-request",
-  "version": "1.0.10",
+  "version": "1.0.14",
   "description": "OkRequest 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端",
   "main": "Index.ets",
   "author": "skipper",
@@ -21,6 +21,6 @@
   "dependencies": {
     "libark_interop_loader.so": "file:./src/main/cangjie/loader",
 
-    "ok_request_api.so": "file:./src/main/cangjie/ark_interop_api"
+    "ok_request_api.so": "file:./src/main/cangjie/ark_interop_api",
   }
 }

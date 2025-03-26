@@ -16,5 +16,5 @@ export {
   TlsConfig,
   Protocol,
   Dns,
-
+  RequestBodyBuilder
 } from './src/main/ets/http/typings'

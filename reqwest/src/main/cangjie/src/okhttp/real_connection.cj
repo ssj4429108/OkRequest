@@ -8,7 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
-
+import ohos_app_cangjie_OkRequest.okio.*
 /**
  * The class is Connection
  * @author guo_tingtingtekla,luoyukai4
@@ -23,7 +23,7 @@ public class Connection {
     private var rawSocket: Option<SocketClient> = Option<SocketClient>.None
 
     /* var member socket type is Option<SocketClient> */
-    var socket: Option<OKSocket> = Option<OKSocket>.None
+    var socket: Option<SocketClient> = Option<SocketClient>.None
 
     /* var member route type is Route */
     let route: Route
@@ -43,9 +43,9 @@ public class Connection {
 
     var routeFailureCount: Int64 = 0
 
-    private var sink: ?BufferedOutputStream<OutputStream> = None
+    private var sink: ?BufferedSink = None
 
-    private var source: Option<OkBuffer> = Option<OkBuffer>.None
+    private var source: Option<BufferedSource> = Option<BufferedSource>.None
 
     private var refusedStreamCount: Int64 = 0
 
@@ -99,7 +99,7 @@ public class Connection {
      * @return Type of Option<Socket>
      * @since 0.29.3
      */
-    public func getSocket(): Option<OKSocket> {
+    public func getSocket(): Option<SocketClient> {
         return socket
     }
 
@@ -271,11 +271,12 @@ public class Connection {
         match (route.getAddress().getTlsConfig()) {
             case None =>
                 eventListener.connectStart(call, route.inetSocketAddress)
-                connectSocket(connectTimeout, readTimeout, writeTimeout)
-                let client = OKSocket(rawSocket.getOrThrow(), readTimeout, writeTimeout)
-                socket = client
-                sink = BufferedOutputStream<OutputStream>(client)
-                source = OkBuffer(client)
+                let realSocket = connectSocket(connectTimeout, readTimeout, writeTimeout)
+//                let client = OKSocket(rawSocket.getOrThrow(), readTimeout, writeTimeout)
+
+                socket = rawSocket
+                sink = Okio.buffer(Okio.sink(realSocket))
+                source = Okio.buffer(Okio.source(realSocket))
                 if (route.getAddress().getProtocols().contains(Protocol.H2_PRIOR_KNOWLEDGE.toString())) {
                     this.protocol = H2_PRIOR_KNOWLEDGE
                     startHttp2()
@@ -295,7 +296,7 @@ public class Connection {
     private func startHttp2() {
         match (socket) {
             case Some(s) =>
-                let cc = H2Connection(s.client, sink.getOrThrow(), source.getOrThrow(), listener: this)
+                let cc = H2Connection(s, sink.getOrThrow(), source.getOrThrow(), listener: this)
                 cc.start()
                 h2conn = cc
             case None => ()
@@ -316,11 +317,10 @@ public class Connection {
             client.readTimeout = readTimeout
             client.writeTimeout = writeTimeout
             client.handshake()
-            let realSocket = OKSocket(TlsC(client), readTimeout, writeTimeout)
             let aplnSelected: String = client.alpnProtocolName.getOrThrow()
-            socket = realSocket
-            sink = BufferedOutputStream<OutputStream>(realSocket)
-            source = OkBuffer(realSocket)
+            socket = TlsC(client)
+            sink = Okio.buffer(Okio.sink(client))
+            source = Okio.buffer(Okio.source(client))
             if (aplnSelected != "") {
                 protocol = Protocol.get(aplnSelected)
             }

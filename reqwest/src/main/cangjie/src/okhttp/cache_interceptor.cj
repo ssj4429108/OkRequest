@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
 
 /**
  * The class is CacheInterceptor inherited from Interceptor
@@ -36,8 +37,9 @@ public class CacheInterceptor <: Interceptor {
         }
 
         if (!has(networkRequest) && !has(cacheResponse)) {
+            let source = Buffer().write(Array<UInt8>())
             return Response.builder().request(chain.getRequest()).protocol(Protocol.HTTP_1_1).code(504).message(
-                "Unsatisfiable Request (only-if-cached)").body(ResponseBody("", 0, OkBuffer(ByteArrayStream()))).
+                "Unsatisfiable Request (only-if-cached)").body(ResponseBody("", 0, source)).
                 sentRequestAtMillis(-1).receivedResponseAtMillis(DateTime.now().toUnixTimeStamp().toMilliseconds()).
                 build()
         }
@@ -104,7 +106,7 @@ public class CacheInterceptor <: Interceptor {
         let source = response.getBody().getOrThrow().getSource()
         let contentType = response.getHeader("Content-Type", "")
         let contentLength = response.getBody().getOrThrow().getContentLength()
-        let responseBody = ResponseBody(contentType, contentLength, CacheWritingSource(source, body))
+        let responseBody = ResponseBody(contentType, contentLength, Okio.buffer(CacheWritingSource(source, body)))
         return response.newBuilder().body(responseBody).build()
     }
 

@@ -3,7 +3,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
-
+import ohos_app_cangjie_OkRequest.okio.*
 /**
  * @file The file manage Http2Reader.
  */
@@ -16,10 +16,10 @@ package ohos_app_cangjie_OkRequest.okhttp
  * @since 0.34.3
  */
 class Http2Reader {
-    let source: OkBuffer
+    let source: BufferedSource
     let frameDecode = Decoder.newDecode()
 
-    init(source: OkBuffer) {
+    init(source: BufferedSource) {
         this.source = source
     }
 
@@ -35,13 +35,13 @@ class Http2Reader {
             if (length < 0 || length > INITIAL_MAX_FRAME_SIZE) {
                 throw HttpException("FRAME_SIZE_ERROR: ${length}")
             }
-            let frameType: Byte = source.readByte()
+            let frameType: Byte = UInt8(source.readInt8())
 
             if (requireSettings && frameType != TYPE_SETTINGS) {
                 throw HttpException("Expected a SETTINGS frame but was ${frameType}")
             }
 
-            let flags: Byte = source.readByte()
+            let flags: Byte = UInt8(source.readInt8())
             let streamId: UInt32 = UInt32(readInt32(source) & 0x7fffffff)
             match (frameType) {
                 case 0x0 => //DATA
@@ -58,7 +58,7 @@ class Http2Reader {
                     readGoAway(handler, length, flags, streamId)
                 case 0x8 => //TYPE_WINDOW_UPDATE
                     readWindowUpdate(handler, length, flags, streamId)
-                case _ => source.skipBuffer(length)
+                case _ => source.skip(length)
             }
             return true
         } catch (e: EOFException) {
@@ -71,20 +71,17 @@ class Http2Reader {
         }
     }
 
-    private func readInt32(source: OkBuffer): Int64 {
-        return Int64(Int32(source.readByte()) << 24 | Int32(source.readByte()) << 16 | Int32(source.readByte()) << 8 |
-                Int32(source.readByte()))
+    private func readInt32(source: BufferedSource): Int64 {
+        return Int64(Int32(source.readInt8()) << 24 | Int32(source.readInt8()) << 16 | Int32(source.readInt8()) << 8 |
+                Int32(source.readInt8()))
     }
 
-    private func readInt16(source: OkBuffer): Int64 {
-        return Int64(Int32(source.readByte()) << 8 | Int32(source.readByte()))
+    private func readInt16(source: BufferedSource): Int64 {
+        return Int64(Int32(source.readInt8()) << 8 | Int32(source.readInt8()))
     }
 
-    func readMedium(source: OkBuffer): Int64 {
-        let arr = ByteArrayStream()
-        source.read(arr, 3)
-        let bytes = arr.readToEnd()
-        return Int64(Int32(bytes[0]) << 16 | Int32(bytes[1]) << 8 | Int32(bytes[2]))
+    func readMedium(source: BufferedSource): Int64 {
+        return Int64(Int32(source.readInt8()) << 16 | Int32(source.readInt8()) << 8 | Int32(source.readInt8()))
     }
 
     func lengthWithoutPadding(len: Int64, flags: Byte, padding: Int64) {
@@ -103,7 +100,7 @@ class Http2Reader {
 
     func readPriority(_: UInt32) {
         readInt32(source)
-        source.readByte()
+        source.readInt8()
     }
 
     private func readWindowUpdate(handler: H2Connection, length: Int64, _: Byte, streamId: UInt32) {
@@ -154,12 +151,10 @@ class Http2Reader {
         if (!has(errorCode)) {
             throw HttpException("TYPE_GOAWAY unexpected error code: ${errorCodeInt}")
         }
-
-        if (opaqueDataLength > 0) {
-            let arr = ByteArrayStream()
-            source.read(arr, opaqueDataLength)
-            arr.clear()
-        }
+        // var debugData = ByteString()
+        // if (opaqueDataLength > 0) {
+        //     debugData = source.readByteString(opaqueDataLength)
+        // }
 
         handler.goAway(lastStreamId, errorCode.getOrThrow())
     }
@@ -174,7 +169,7 @@ class Http2Reader {
         var padding = 0
 
         if ((flags & FLAG_PADDED) != 0) {
-            padding = Int64(source.readByte())
+            padding = Int64(source.readInt8())
         }
 
         if ((flags & FLAG_PRIORITY) != 0) {
@@ -184,22 +179,25 @@ class Http2Reader {
         }
 
         length = lengthWithoutPadding(length, flags, padding)
-        let arr = ByteArrayStream()
-        source.read(arr, length)
-        source.skipBuffer(padding)
+        // let arr = ByteArrayStream()
+        let arr = Array<Byte>(length, item: 0)
+        source.read(arr)
+        source.skip(padding)
 
         while (endStream) {
             endStream = readContinuationHeader(arr, streamId)
         }
 
-        let headerBlock: Array<HeaderField> = frameDecode.decode(arr.readToEnd())
+        let headerBlock: Array<HeaderField> = frameDecode.decode(arr)
         handler.headers(endStream, streamId, -1, headerBlock)
     }
 
-    func readContinuationHeader(arr: ByteArrayStream, previousStreamId: UInt32) {
+    
+
+    func readContinuationHeader(arr: Array<Byte>, previousStreamId: UInt32) {
         let length = readMedium(source)
-        let frameType: Byte = source.readByte()
-        let flags: Byte = source.readByte()
+        let frameType: Byte = UInt8(source.readInt8())
+        let flags: Byte = UInt8(source.readInt8())
         let streamId: UInt32 = UInt32(readInt32(source) & 0x7fffffff)
 
         if (frameType != TYPE_CONTINUATION) {
@@ -210,7 +208,7 @@ class Http2Reader {
             throw HttpException("TYPE_CONTINUATION streamId changed")
         }
 
-        source.read(arr, length)
+        source.read(arr, 0, length)
         return (flags & FLAG_END_STREAM) != 0
     }
 
@@ -228,12 +226,12 @@ class Http2Reader {
 
         var padding = 0
         if ((flags & FLAG_PADDED) != 0) {
-            padding = Int64(source.readByte())
+            padding = Int64(source.readInt8())
         }
 
         let length = lengthWithoutPadding(len, flags, padding)
         handler.data(inFinished, streamId, source, length)
-        source.skipBuffer(padding)
+        source.skip(padding)
     }
 
     private func readPing(handler: H2Connection, length: Int64, flags: Byte, streamId: UInt32) {

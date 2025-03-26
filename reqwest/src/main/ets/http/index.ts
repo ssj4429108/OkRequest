@@ -18,16 +18,8 @@ export class OkHttpClient {
     if (config.tlsConfig) {
       tlsConfig = new this.baseApi.ArkTlsConfig(config.tlsConfig.verifyMode.valueOf(), config.tlsConfig.pem)
     }
-    let cacheControl = undefined
-    if (config.cacheControl) {
-      cacheControl =
-        new this.baseApi.ArkCacheControl(config.cacheControl.noCacheBuild, config.cacheControl.noStoreBuild,
-          config.cacheControl.maxAgeSeconds ?? -1, config.cacheControl.maxStaleSeconds ?? -1,
-          config.cacheControl.minFreshSeconds ?? -1, config.cacheControl.onlyIfCachedBuild,
-          config.cacheControl.noTransformBuild, config.cacheControl.immutableBuild)
-    }
     this.client =
-      new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig, cacheControl)
+      new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig)
     this.config = config
   }
 
@@ -91,11 +83,20 @@ export class OkHttpClient {
     return new this.baseApi!.ArkHeader(name, value)
   }
 
-  private async createRealRequest(request: Request): Promise<ArkRequest> {
-    let bytes = await request.body?.bytes() || undefined
+
+  private createRealRequestSync(request: Request): ArkRequest {
+    let bytes = request.body?.bytesSync() || undefined
     let dns = undefined
     if (request.dnsInfo) {
       dns = JSON.stringify(request.dnsInfo)
+    }
+    let cacheControl = undefined
+    if (request.cacheControl) {
+      cacheControl =
+        new this.baseApi.ArkCacheControl(request.cacheControl.noCacheBuild, request.cacheControl.noStoreBuild,
+          request.cacheControl.maxAgeSeconds ?? -1, request.cacheControl.maxStaleSeconds ?? -1,
+          request.cacheControl.minFreshSeconds ?? -1, request.cacheControl.onlyIfCachedBuild,
+          request.cacheControl.noTransformBuild, request.cacheControl.immutableBuild)
     }
     let realRequest = new this.baseApi!.ArkRequest(
       request.url,
@@ -103,7 +104,34 @@ export class OkHttpClient {
       request.headers,
       request.mediaType ? request.mediaType : "application/json; charset=utf-8",
       bytes,
-      dns
+      dns,
+      cacheControl
+    )
+    return realRequest
+  }
+
+  private async createRealRequest(request: Request): Promise<ArkRequest> {
+    let bytes = await request.body?.bytes() || undefined
+    let dns = undefined
+    if (request.dnsInfo) {
+      dns = JSON.stringify(request.dnsInfo)
+    }
+    let cacheControl = undefined
+    if (request.cacheControl) {
+      cacheControl =
+        new this.baseApi.ArkCacheControl(request.cacheControl.noCacheBuild, request.cacheControl.noStoreBuild,
+          request.cacheControl.maxAgeSeconds ?? -1, request.cacheControl.maxStaleSeconds ?? -1,
+          request.cacheControl.minFreshSeconds ?? -1, request.cacheControl.onlyIfCachedBuild,
+          request.cacheControl.noTransformBuild, request.cacheControl.immutableBuild)
+    }
+    let realRequest = new this.baseApi!.ArkRequest(
+      request.url,
+      request.method?.valueOf() || undefined,
+      request.headers,
+      request.mediaType ? request.mediaType : "application/json; charset=utf-8",
+      bytes,
+      dns,
+      cacheControl
     )
     return realRequest
   }
@@ -124,6 +152,41 @@ export class OkHttpClient {
       result = interceptor.intercept(result)
     })
     return result
+  }
+
+  executeSync(request: Request): Response | undefined {
+    this.checkLoadedSO()
+
+      this.config.requestInterceptors.forEach((interceptor) => {
+      request = interceptor.intercept(request)
+    })
+
+    let realRequest = this.createRealRequestSync(request)
+    this.requestCache.set(request.requestId, realRequest)
+
+    let result = this.sendSync(request, realRequest)
+
+    this.config.responseInterceptors.forEach((interceptor) => {
+      result = interceptor.intercept(result)
+    })
+    return result
+  }
+
+  protected sendSync(request: Request, realRequest: ArkRequest): Response | undefined {
+    let result: ArkResponse | undefined
+    try {
+      result = this.baseApi!.sendSync(this.client, realRequest)
+    } catch (e) {
+      throw e
+    }
+    if (!result) {
+      return undefined
+    }
+    let response = new Response(result, request)
+    if (!response.successfully) {
+      throw new HttpError(request, response.code, response.body)
+    }
+    return response
   }
 
   protected async send(request: Request, realRequest: ArkRequest): Promise<Response | undefined> {

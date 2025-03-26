@@ -7,6 +7,9 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
+
+
 
 /**
  * The class is H2Stream
@@ -29,6 +32,7 @@ public class H2Stream {
     var unacknowledgedBytesRead = 0
 
     var bytesLeftInWriteWindow: Int64
+
 
     /**
      * The Function is init constructor
@@ -221,7 +225,7 @@ public class H2Stream {
             throwErrorException()
         }
 
-        if (!source.finished || source.receiveBuffer.remainLength != 0 || source.readBuffer.remainLength != 0) {
+        if (!source.finished || source.receiveBuffer.size != 0 || source.readBuffer.size != 0) {
             throw IllegalStateException("too early; can't read the trailers yet")
         }
 
@@ -314,7 +318,12 @@ public class H2Stream {
         return true
     }
 
-    func receiveData(source: OkBuffer, length: Int64) {
+    func receiveData(source: BufferedSource, length: Int64) {
         this.source.receive(source, length)
     }
+
+    public func doReadTimeout(): Bool {
+        return sink.isClosed() || sink.finished
+    }
+
 }

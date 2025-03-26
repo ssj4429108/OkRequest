@@ -3,6 +3,8 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos_app_cangjie_OkRequest.okio.*
+import ohos.hilog.Hilog
 
 /**
  * @file The file manage Http2Writer.
@@ -36,13 +38,13 @@ let FLAG_COMPRESSED: Byte = 0x20
  * @since 0.34.3
  */
 class Http2Writer {
-    private let sink: BufferedOutputStream<OutputStream>
+    private let sink: BufferedSink
     let mutex: Monitor = Monitor()
     private var closed: Bool = false
     private var maxFrameSize = INITIAL_MAX_FRAME_SIZE
     private let encoder: Encoder
 
-    init(sink: BufferedOutputStream<OutputStream>, encoder: Encoder) {
+    init(sink: BufferedSink, encoder: Encoder) {
         this.sink = sink
         this.encoder = encoder
     }
@@ -91,6 +93,7 @@ class Http2Writer {
     }
 
     func flush() {
+        Hilog.info(3, "ok-request", "flush1116")
         synchronized(mutex) {
             if (closed) {
                 throw HttpException("closed")
@@ -134,17 +137,17 @@ class Http2Writer {
         writeUInt32(sink, Int64(streamId) & 0x7fffffff)
     }
 
-    private func writeMedium(sink: BufferedOutputStream<OutputStream>, b: Int64): Unit {
+    private func writeMedium(sink: BufferedSink, b: Int64): Unit {
         let i = UInt32(b)
         let arr: Array<Byte> = [UInt8((i >> 16) & 0xff), UInt8((i >> 8) & 0xff), UInt8(i & 0xff)]
         sink.write(arr)
     }
 
-    private func writeByte(sink: BufferedOutputStream<OutputStream>, b: Byte) {
+    private func writeByte(sink: BufferedSink, b: Byte) {
         sink.write([b])
     }
 
-    private func writeUInt32(sink: BufferedOutputStream<OutputStream>, i: Int64) {
+    private func writeUInt32(sink: BufferedSink, i: Int64) {
         let b = UInt32(i)
         let arr: Array<Byte> = [
             UInt8((b >> 24) & 0xff),
@@ -155,7 +158,7 @@ class Http2Writer {
         sink.write(arr)
     }
 
-    private func writeUInt16(sink: BufferedOutputStream<OutputStream>, i: Int64) {
+    private func writeUInt16(sink: BufferedSink, i: Int64) {
         let b = UInt32(i)
         let arr: Array<Byte> = [UInt8((b >> 8) & 0xff), UInt8(b & 0xff)]
         sink.write(arr)
@@ -283,7 +286,7 @@ class Http2Writer {
         }
     }
 
-    func data(outFinished: Bool, streamId: UInt32, source: ByteArrayStream, byteCount: Int64) {
+    func data(outFinished: Bool, streamId: UInt32, source: Buffer, byteCount: Int64) {
         synchronized(mutex) {
             if (closed) {
                 throw HttpException("closed")
@@ -297,7 +300,7 @@ class Http2Writer {
         }
     }
 
-    func dataFrame(streamId: UInt32, flags: Byte, source: ByteArrayStream, byteCount: Int64) {
+    func dataFrame(streamId: UInt32, flags: Byte, source: Buffer, byteCount: Int64) {
         let frameType = TYPE_DATA
         frameHeader(streamId, byteCount, frameType, flags)
         if (byteCount > 0) {

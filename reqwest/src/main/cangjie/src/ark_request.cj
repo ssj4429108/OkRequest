@@ -27,12 +27,11 @@ public class ArkHeader <: ToString {
     }
 }
 
-
-
 @Interop[ArkTS, Async]
 public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
     request.requestFuture = spawn {
-        let realRequest = request.buildRealRequest(client.cacheControl)
+        let realRequest = request.buildRealRequest()
+        Hilog.info(3, "ok-request", "${realRequest}")
         let response = try {
             client.getRealClient().newCall(realRequest).execute()
         } catch (e: Exception) {
@@ -53,7 +52,7 @@ public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse
 
 @Interop[ArkTS]
 public func sendSync(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
-    let realRequest = request.buildRealRequest(client.cacheControl)
+    let realRequest = request.buildRealRequest()
     let response = try {
         client.getRealClient().newCall(realRequest).execute()
     } catch (e: Exception) {
@@ -81,24 +80,30 @@ public class ArkRequest {
     var url: String = ""
     var method: Option<String> = None
     var headers: Option<JSArrayEx<ArkHeader>> = None
-    var mediaType: String = "application/json; charset=utf-8"
+    var mediaType: Option<String> = None
     var body: Option<Array<Byte>> = None
     var dns: Option<String> = None
 
     private var realHeaders: Option<ArrayList<ArkHeader>> = None<ArrayList<ArkHeader>>
 
     private var realAddressInfo: Option<ArrayList<(SocketAddressKind, Array<UInt8>)>> = None
+    var cacheControl: Option<ArkCacheControl>
 
     @Interop[ArkTS, Invisible]
     var requestFuture: Option<Future<Option<ArkResponse>>> = None<Future<Option<ArkResponse>>>
-    public init(url: String, method: Option<String>, headers: Option<JSArrayEx<ArkHeader>>, mediaType: String,
-        body: Option<Array<Byte>>, dns: Option<String>) {
+    public init(url: String, method: Option<String>, headers: Option<JSArrayEx<ArkHeader>>, mediaType: Option<String>,
+        body: Option<Array<Byte>>, dns: Option<String>, arkCacheControl: Option<ArkCacheControl>) {
         this.url = url
         this.method = method
         this.headers = headers
         this.mediaType = mediaType
         this.body = body
         this.dns = dns
+        this.cacheControl = arkCacheControl
+        match (this.mediaType) {
+            case Some(mediaType) => ()
+            case None => this.mediaType = 'application/json; charset=utf-8'
+        }
         match (headers) {
             case Some(headers) =>
                 let headerArray = ArrayList<ArkHeader>()
@@ -163,13 +168,13 @@ public class ArkRequest {
     @Interop[ArkTS, Invisible]
     private func bodyMethod(method: String, requestBuilder: RequestBuilder) {
         let realBody = match (body) {
-            case Some(body) => RealRequestBody.create(MediaType.get(mediaType), body)
+            case Some(body) => RealRequestBody.create(MediaType.get(mediaType.getOrThrow()), body)
             case None => None<RequestBody>
         }
         requestBuilder.method(method, body: realBody)
     }
     @Interop[ArkTS, Invisible]
-    public func buildRealRequest(cacheControl: Option<ArkCacheControl>): Request {
+    public func buildRealRequest(): Request {
         let requestBuilder = Request.builder()
         let url = URL.parse(url)
         requestBuilder.url(url)
@@ -191,11 +196,11 @@ public class ArkRequest {
         match (realHeaders) {
             case Some(headers) =>
                 let headerBuilder = Header()
-
                 for (i in 0..headers.size) {
                     let header = headers.get(i)
                     match (header) {
-                        case Some(header) => headerBuilder.add(header.name, header.value)
+                        case Some(header) =>
+                            headerBuilder.add(header.name, header.value)
                         case None => ()
                     }
                 }
@@ -205,7 +210,7 @@ public class ArkRequest {
             case None => ()
         }
         match (cacheControl) {
-        	case Some(arkCacheControl) =>
+            case Some(arkCacheControl) =>
                 let cacheBuilder = CacheControlBuilder()
                 if (arkCacheControl.immutableBuild) {
                     cacheBuilder.immutable()
@@ -222,9 +227,15 @@ public class ArkRequest {
                 if (arkCacheControl.noTransformBuild) {
                     cacheBuilder.noTransform()
                 }
-                cacheBuilder.minFresh(arkCacheControl.minFreshSeconds)
-                cacheBuilder.maxAge(arkCacheControl.maxAgeSeconds)
-                cacheBuilder.maxStale(arkCacheControl.maxStaleSeconds)
+                if (arkCacheControl.minFreshSeconds > 0) {
+                    cacheBuilder.minFresh(arkCacheControl.minFreshSeconds)
+                }
+                if (arkCacheControl.maxAgeSeconds > 0) {
+                    cacheBuilder.maxAge(arkCacheControl.maxAgeSeconds)
+                }
+                if (arkCacheControl.maxStaleSeconds > 0) {
+                    cacheBuilder.maxStale(arkCacheControl.maxStaleSeconds)
+                }
                 requestBuilder.cacheControl(cacheBuilder.build())
             case None => ()
         }

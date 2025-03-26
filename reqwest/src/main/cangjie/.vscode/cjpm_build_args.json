@@ -1,0 +1,11 @@
+{
+	"debug": false,
+	"verbose": false,
+	"coverage": false,
+	"increment": false,
+	"codeCheck": false,
+	"alias": "",
+	"cross": "",
+	"condition": "",
+	"job": ""
+}

@@ -8,6 +8,8 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos.hilog.Hilog
+import ohos_app_cangjie_OkRequest.okio.*
 
 /* let member CRLF_CRLF type is Array<Byte> */
 let CRLF_CRLF: Array<Byte> = "\r\n\r\n".toArray()
@@ -64,8 +66,8 @@ public class Http1ExchangeCodec <: ExchangeCodec {
 
     /* var member client type is HttpClient */
     var client: HttpClient
-    let sink: BufferedOutputStream<OutputStream>
-    let source: OkBuffer
+    let sink: BufferedSink
+    let source: BufferedSource
     private var headerLimit: Int64 = HEADER_LIMIT
     var trailers: Header = Header()
 
@@ -79,8 +81,8 @@ public class Http1ExchangeCodec <: ExchangeCodec {
     public init(
         client: HttpClient,
         realConnection: Connection,
-        source: OkBuffer,
-        sink: BufferedOutputStream<OutputStream>
+        source: BufferedSource,
+        sink: BufferedSink
     ) {
         this.client = client
         this.realConnection = realConnection
@@ -168,10 +170,8 @@ public class Http1ExchangeCodec <: ExchangeCodec {
         if (state != STATE_IDLE) {
             throw IllegalStateException("state: ${state}")
         }
-
         var buffer: StringBuilder = StringBuilder()
         buffer.append(requestLine + CRLF)
-
         for ((ks, v) in headers) {
             // var k = HeaderDfaUtil.canonicalHeaderKey(ks)
             var k = ks
@@ -218,9 +218,11 @@ public class Http1ExchangeCodec <: ExchangeCodec {
     }
 
     private func readHeaderLine(): String {
+        Hilog.info(3, "ok-request", "start read headerline: ${headerLimit}")
         let line = source.readUtf8LineStrict(headerLimit)
-        headerLimit -= line.size
-        return line
+        headerLimit -= line.getOrThrow().size
+        Hilog.info(3, "ok-request", "end read headerline: ${line.getOrThrow()}")
+        return line.getOrThrow()
     }
 
     func readHeaders(): Header {

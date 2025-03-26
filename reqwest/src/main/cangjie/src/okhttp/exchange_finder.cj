@@ -9,6 +9,8 @@
 
 package ohos_app_cangjie_OkRequest.okhttp
 
+import ohos_app_cangjie_OkRequest.okio.*
+
 /**
  * The class is ExchangeFinder
  * @author guo_tingtingtekla,luoyukai4
@@ -127,8 +129,8 @@ class ExchangeFinder {
         writeTimeout: Option<Duration>,
         connectionRetryEnabled: Bool
     ): Connection {
-        let tuple: (Option<OKSocket>, Option<Connection>, Option<Route>) = firstGetConn()
-        var toClose: Option<OKSocket> = tuple[0]
+        let tuple: (Option<SocketClient>, Option<Connection>, Option<Route>) = firstGetConn()
+        var toClose: Option<SocketClient> = tuple[0]
         var result: Option<Connection> = tuple[1]
         var selectedRoute: Option<Route> = tuple[2]
         Util.closeQuietly(toClose)
@@ -165,7 +167,7 @@ class ExchangeFinder {
         var conn: Connection = result.getOrThrow()
         conn.connect(connectTimeout, readTimeout, writeTimeout, connectionRetryEnabled, eventListener, call)
         connectionPool.routeDatabase.connected(conn.route)
-        var socket: Option<OKSocket> = None
+        var socket: Option<SocketClient> = None
         synchronized(connectionPool.mutex) {
             connectingConnection = None
             if (connectionPool.transmitterAcquirePooledConnection(
@@ -187,8 +189,8 @@ class ExchangeFinder {
         return result.getOrThrow()
     }
 
-    func firstGetConn(): (Option<OKSocket>, Option<Connection>, Option<Route>) {
-        var toClose: Option<OKSocket>
+    func firstGetConn(): (Option<SocketClient>, Option<Connection>, Option<Route>) {
+        var toClose: Option<SocketClient>
         var result: Option<Connection> = Option<Connection>.None
         var selectedRoute: Option<Route> = None
         synchronized(connectionPool.mutex) {
@@ -202,9 +204,9 @@ class ExchangeFinder {
                     if (conn.noNewExchanges) {
                         toClose = transmitter.releaseConnectionNoEvents()
                     } else {
-                        toClose = Option<OKSocket>.None
+                        toClose = Option<SocketClient>.None
                     }
-                case _ => toClose = Option<OKSocket>.None
+                case _ => toClose = Option<SocketClient>.None
             }
 
             //Attempt to get a connection from the pool first time .
@@ -354,7 +356,7 @@ public class Exchange {
             let contentTypeString: String = response.getHeader("Content-Type", "")
             let contentLength: Int64 = codec.reportedContentLength(response)
             let source = codec.openResponseBodySource(response)
-            return ResponseBody(contentTypeString, contentLength, ResponseBodySource(source, this, contentLength))
+            return ResponseBody(contentTypeString, contentLength, Okio.buffer(ResponseBodySource(source, this, contentLength)))
         } catch (e: HttpException) {
             eventListener.responseFailed(call, e)
             trackFailure(e)

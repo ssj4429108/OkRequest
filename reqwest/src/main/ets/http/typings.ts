@@ -77,8 +77,6 @@ export interface OkConfig {
   tlsConfig: TlsConfig | undefined
 
   dns: Dns | undefined
-
-  cacheControl?: CacheControl
 }
 
 export class Request {
@@ -94,6 +92,8 @@ export class Request {
 
   readonly dnsInfo: Array<socket.NetAddress> | undefined = undefined
 
+  readonly cacheControl?: CacheControl
+
   constructor(builder: RequestBuilder) {
     this.url = builder.url
     this.method = builder.method
@@ -103,6 +103,7 @@ export class Request {
     this.client = builder.client
     this.requestId = util.generateRandomUUID(true)
     this.dnsInfo = builder.dnsInfo
+    this.cacheControl = builder.mCacheControl
   }
 
   newBuilder(): RequestBuilder {
@@ -125,6 +126,25 @@ export interface RequestBody {
   bytesSync(): ArrayBuffer
 
   bytes(): Promise<ArrayBuffer>
+}
+
+
+export class RequestBodyBuilder {
+  private data: ArrayBuffer
+  private contentType: string | undefined
+
+  constructor(data: ArrayBuffer, contentType: string | undefined) {
+    this.data = data
+    this.contentType = contentType
+  }
+  build(): RequestBody {
+    return {
+      contentType: () => this.contentType,
+      contentLength: () => this.data.byteLength,
+      bytesSync: () => this.data,
+      bytes: async () => this.data
+    }
+  }
 }
 
 class TextRequestBody implements RequestBody {
@@ -335,6 +355,7 @@ class MultipartBody implements RequestBody {
   }
 }
 
+
 export class MultipartBodyBuilder {
   parts: Part[] = []
   contentType = "multipart/mixed"
@@ -437,6 +458,7 @@ export class RequestBuilder {
   body?: RequestBody
   mediaType?: string
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
+  mCacheControl?: CacheControl
 
   constructor(client: OkHttpClient) {
     this.client = client
@@ -490,19 +512,27 @@ export class RequestBuilder {
 
   file(fileBody: FileBody): RequestBuilder {
     this.setHead('Content-Type', fileBody.contentType())
+    this.mediaType = fileBody.contentType()
     this.body = fileBody
     return this
   }
 
   multipart(multipartBody: MultipartBody): RequestBuilder {
     this.setHead('Content-Type', multipartBody.contentType())
+    this.mediaType = multipartBody.contentType()
     this.body = multipartBody
     return this
   }
 
   data(body: RequestBody, contentType: string): RequestBuilder {
     this.setHead('Content-Type', contentType)
+    this.mediaType = contentType
     this.body = body
+    return this
+  }
+
+  cacheControl(cacheControl: CacheControl): RequestBuilder {
+    this.mCacheControl = cacheControl
     return this
   }
 
@@ -524,6 +554,11 @@ export class RequestBuilder {
   send(): Promise<Response | undefined> {
     let request = this.build()
     return this.client.execute(request)
+  }
+
+  sendSync(): Response | undefined {
+    let request = this.build()
+    return this.client.executeSync(request)
   }
 }
 

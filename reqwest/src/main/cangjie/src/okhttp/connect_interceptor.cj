@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos.hilog.Hilog
 
 /**
  * The class is ConnectInterceptor inherited from Interceptor

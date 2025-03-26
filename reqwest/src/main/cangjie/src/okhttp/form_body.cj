@@ -8,7 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
-
+import ohos_app_cangjie_OkRequest.okio.*
 /**
  * The class is FormBody
  * @author luoyukai4
@@ -31,7 +31,9 @@ public class FormBody <: RequestBody {
     }
 
     public func writeTo(sink: Sink): Unit {
-        sink.write(form.toEncodeString().toUtf8Array())
+        let buffer = Buffer()
+        buffer.write(form.toEncodeString().toUtf8Array())
+        sink.write(buffer, buffer.size)
     }
 
     public static func builder(): FormBodyBuilder {

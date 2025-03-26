@@ -31,6 +31,7 @@ internal import std.unicode.*
 internal import crypto.crypto.*
 import encoding.json.stream.JsonSerializable
 import encoding.json.stream.JsonWriter
+import ohos_app_cangjie_OkRequest.okio.*
 
 let METHOD_GET = "GET"
 
@@ -162,7 +163,7 @@ func receiveHeaders(cookieJar: CookieJar, url: URL, headers: Header): Unit {
 
 func disCard(source: Source): Bool {
     try {
-        let arr = ByteArrayStream()
+        let arr = Buffer()
         while (source.read(arr, 4096) != -1) {
             arr.clear()
         }

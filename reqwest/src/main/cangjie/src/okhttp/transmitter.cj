@@ -8,7 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
-
+import ohos_app_cangjie_OkRequest.okio.*
 /**
  * The class is Transmitter
  * @author guo_tingtingtekla,luoyukai4
@@ -115,7 +115,7 @@ public class Transmitter {
      * @return Type of Option<Socket>
      * @since 0.29.3
      */
-    func releaseConnectionNoEvents(): Option<OKSocket> {
+    func releaseConnectionNoEvents(): Option<SocketClient> {
         let conn = connection.getOrThrow()
         let arr = conn.getTransmitters()
 
@@ -136,7 +136,7 @@ public class Transmitter {
             }
         }
 
-        return Option<OKSocket>.None
+        return Option<SocketClient>.None
     }
 
     /**
@@ -226,7 +226,7 @@ public class Transmitter {
     }
 
     private func maybeReleaseConnection(force: Bool): Unit {
-        var socket: Option<OKSocket> = None
+        var socket: Option<SocketClient> = None
         var callEnd: Bool
         synchronized(connectionPool.mutex) {
             let hase = hasExchange()

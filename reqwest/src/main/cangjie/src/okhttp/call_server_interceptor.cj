@@ -8,6 +8,7 @@
  */
 
 package ohos_app_cangjie_OkRequest.okhttp
+import ohos.hilog.Hilog
 
 /**
  * The class is CallServerInterceptor inherited from Interceptor
@@ -66,18 +67,26 @@ public class CallServerInterceptor <: Interceptor {
         } else {
             exchange.noRequestBody()
         }
+        if (request.body.isNone()) {
+            exchange.finishRequest()
+        }
 
-        exchange.finishRequest()
-
+        Hilog.info(3, 'ok-request', "finish request")
         if (!responseHeadersStarted) {
+            Hilog.info(3, 'ok-request', "header response start")
             exchange.responseHeadersStart()
+            Hilog.info(3, 'ok-request', "header response end")
         }
 
         if (!has(responseBuilder)) {
+            Hilog.info(3, 'ok-request', "read response header start")
             responseBuilder = exchange.readResponseHeaders(false)
+            Hilog.info(3, 'ok-request', "read response header end")
         }
 
+        Hilog.info(3, 'ok-request', "response start")
         let response: Response = responseBuilder.getOrThrow().request(request).build()
+        Hilog.info(3, 'ok-request', "response end")
         return checkResponse(exchange, request, response, sentRequestMillis)
     }
 

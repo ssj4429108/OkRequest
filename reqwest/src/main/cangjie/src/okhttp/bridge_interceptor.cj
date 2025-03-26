@@ -9,6 +9,10 @@
 
 package ohos_app_cangjie_OkRequest.okhttp
 
+import ohos_app_cangjie_OkRequest.okio.*
+import ohos.hilog.Hilog
+
+
 /**
  * The class is BridgeInterceptor inherited from Interceptor
  * @author guo_tingtingtekla,luoyukai4
@@ -83,6 +87,7 @@ public class BridgeInterceptor <: Interceptor {
         }
 
         var response: Response = chain.proceed(requestBuilder.build())
+        Hilog.info(3, "ok-request", "response: ${response}")
         let responseHeader: Header = response.getHeaders()
         receiveHeaders(cookieJar, request.getUrl(), responseHeader)
         let responseBuilder: ResponseBuilder = response.newBuilder().request(request)
@@ -93,8 +98,9 @@ public class BridgeInterceptor <: Interceptor {
             strippedHeader.remove("Content-Length")
             responseBuilder.header(strippedHeader)
             let contentType = response.getHeader("Content-Type", "")
+            let source = response.getBody().getOrThrow().getSource()
             responseBuilder.body(
-                ResponseBody(contentType, -1, OkGzipSource(response.getBody().getOrThrow().getSource()))
+                ResponseBody(contentType, -1, GzipSource(source).buffer())
             )
         }
 

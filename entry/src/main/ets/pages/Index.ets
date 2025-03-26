@@ -1,5 +1,10 @@
-import { OkConfig, OkHttpClient, Request, VerifyMode, Response } from '@axzo/ok-request';
-import { socket } from '@kit.NetworkKit';
+import { OkConfig, OkHttpClient, Request, VerifyMode, Response, RequestBodyBuilder, HttpError } from '@axzo/ok-request';
+import { image } from '@kit.ImageKit';
+import { common } from '@kit.AbilityKit';
+import { LivenessDetection } from '../utils/Index'
+import { url, util, xml } from '@kit.ArkTS';
+import { FileUploadResp } from '../pojo';
+import utils from '@arkts.utils';
 
 const config: OkConfig = {
   requestInterceptors: [],
@@ -13,24 +18,29 @@ const config: OkConfig = {
     pem: undefined
   },
   dns: undefined,
-  cacheControl: {
 
-  }
 }
 
-config.requestInterceptors.push({
-  intercept: (request: Request) => {
-    return request.newBuilder()
-      .head('1', '2')
-      .build()
-  }
-})
+class AxzHttpResponse<T> {
+  code: number = 0
+  message?: string = ""
+  data?: T | undefined
+}
 
-config.responseInterceptors.push({
-  intercept: (response: Response | undefined) => {
-    return response
-  }
-})
+
+// config.requestInterceptors.push({
+//   intercept: (request: Request) => {
+//     return request.newBuilder()
+//       .head('1', '2')
+//       .build()
+//   }
+// })
+//
+// config.responseInterceptors.push({
+//   intercept: (response: Response | undefined) => {
+//     return response
+//   }
+// })
 
 
 @Entry
@@ -39,27 +49,36 @@ struct Index {
   @State message: string = 'Hello World';
   client = new OkHttpClient(config)
 
+  private isLivenessDetection: boolean = false
+
 
   build() {
-    RelativeContainer() {
+    Column() {
       Text(this.message)
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
-        .alignRules({
-          center: { anchor: '__container__', align: VerticalAlign.Center },
-          middle: { anchor: '__container__', align: HorizontalAlign.Center }
-        })
         .onClick(async () => {
+          let resp = await this.client.get('http://www.baidu.com').send()
+          console.log(resp?.text())
+        })
+      Text('测试')
+        .fontSize(40)
+        .fontWeight(FontWeight.Bold)
+        .onClick(() => {
           try {
-            // let res = await this.client.get("http://baidu.com").dns([{address: '192.168.1.1', family: 1}]).send()
-            let res = await this.client.get("http://baidu.com").send()
-            console.log(res?.text())
+            let resp = this.client.get('https://www.baidu.com').sendSync()
+            console.log(resp?.text())
           } catch (e) {
-            console.log(e)
+
           }
         })
     }
     .height('100%')
     .width('100%')
   }
+
+  onPageShow(): void {
+
+  }
+
 }
