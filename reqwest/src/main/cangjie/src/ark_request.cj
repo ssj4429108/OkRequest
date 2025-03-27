@@ -31,11 +31,9 @@ public class ArkHeader <: ToString {
 public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
     request.requestFuture = spawn {
         let realRequest = request.buildRealRequest()
-        Hilog.info(3, "ok-request", "${realRequest}")
         let response = try {
             client.getRealClient().newCall(realRequest).execute()
         } catch (e: Exception) {
-            Hilog.error(2, "ok-request", "response error: ${e}")
             throw e
         }
         request.cacheDns()
@@ -56,7 +54,6 @@ public func sendSync(client: ArkHttpClient, request: ArkRequest): Option<ArkResp
     let response = try {
         client.getRealClient().newCall(realRequest).execute()
     } catch (e: Exception) {
-        Hilog.error(2, "ok-request", "response error: ${e}")
         throw e
     }
 

@@ -37,15 +37,12 @@ public enum SocketClient <: Resource {
     public func read(buffer: Array<Byte>): Int64 {
         return match (this) {
             case SocketC(conn) =>
-                Hilog.info(3, "ok-request", "socket read start: ${conn}")
-                conn.readTimeout = Duration.second * 3
-                let res = try {
-                    conn.read(buffer)
+                let res = conn.read(buffer)
+                try {
+                    Hilog.info(3, "ok-request", "response: ${String.fromUtf8(buffer)}, size: ${res}")
                 } catch (e: Exception) {
-                    Hilog.error(3, "ok-request", "${e}")
-                	-1
+                    Hilog.info(3, "ok-request", "response failed, size: ${res}")
                 }
-                Hilog.info(3, "ok-request", "socket read end")
                 res
             case TlsC(conn) => conn.read(buffer)
         }
@@ -65,9 +62,7 @@ public enum SocketClient <: Resource {
     public func write(buffer: Array<Byte>): Unit {
         match (this) {
             case SocketC(conn) =>
-                Hilog.info(3, "ok-request", "socket write start: ${conn}, buffer: ${buffer.size}")
                 conn.write(buffer)
-                Hilog.info(3, "ok-request", "socket write end")
             case TlsC(conn) => conn.write(buffer)
         }
     }

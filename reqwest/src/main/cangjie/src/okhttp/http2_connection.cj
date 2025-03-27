@@ -461,7 +461,6 @@ public class H2Connection {
      * @since 0.34.3
      */
     public func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1115")
         writer.flush()
     }
 }

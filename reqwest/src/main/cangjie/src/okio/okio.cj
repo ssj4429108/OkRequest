@@ -161,40 +161,24 @@ public class Okio {
             if (byteCount == 0) {
                 return 0
             }
-            Hilog.info(3, "ok-request", "sub read")
             try {
-            Hilog.info(3, "ok-request", "sub read1")
                 timeout.throwIfReached()
 
-            Hilog.info(3, "ok-request", "sub read2")
                 let tail = sink.writableSegment(1)
 
-            Hilog.info(3, "ok-request", "sub read3")
                 let maxToCopy = min(byteCount, Segment.SIZE - tail.limit)
 
-            Hilog.info(3, "ok-request", "sub read4, limit: ${tail.limit}, maxToCopy: ${maxToCopy}, byteCount: ${byteCount}, size: ${tail.data.size}")
-                let bytesRead = input.read(tail.data[tail.limit.. tail.limit + maxToCopy])
+                let bytesRead = input.read(tail.data[tail.limit .. maxToCopy])
 
-            Hilog.info(3, "ok-request", "sub read5")
                 if (bytesRead == 0) {
-
-            Hilog.info(3, "ok-request", "sub read6")
                     if (tail.pos == tail.limit) {
-
-            Hilog.info(3, "ok-request", "sub read7")
                         sink.head = tail.pop()
-
-            Hilog.info(3, "ok-request", "sub read8")
                         SegmentPool.recycle(tail)
-
-            Hilog.info(3, "ok-request", "sub read9")
                     }
                     return -1
                 }
                 tail.limit += bytesRead
                 sink.mysize += bytesRead
-
-            Hilog.info(3, "ok-request", "sub read10")
                 return bytesRead
             } catch (e: Exception) {
                 throw e
@@ -217,7 +201,7 @@ public class Okio {
                 timeout.throwIfReached()
                 var head = source.head.getOrThrow()
                 var toCopy = min(byteCount, head.limit - head.pos)
-                out.write(head.data[head.pos..head.pos+toCopy])
+                out.write(head.data[head.pos..toCopy])
                 head.pos += toCopy
                 byteCount -= toCopy
                 source.mysize -= toCopy
@@ -233,7 +217,6 @@ public class Okio {
         func subTimeout (): Timeout {
             return timeout
         }
-        Hilog.info(3, "ok-request", "sink 1")
         let sink = AnonymousSink()
         sink.funWrite = subWrite
         sink.funFlush = subFlush
@@ -337,7 +320,7 @@ class AnonymousSource <: Source {
      * @since 0.32.5
      */
     public override func toString(): String{
-        return this.toString()
+        return "AnonymousSource"
     }
 }
 
@@ -362,7 +345,6 @@ class AnonymousSink <: Sink {
      * @since 0.32.5
      */
     public override func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush111xxx1")
         match (this.funFlush) {
             case None => ()
             case Some(v) => v()
@@ -389,7 +371,6 @@ class AnonymousSink <: Sink {
      * @since 0.32.5
      */
     public override func write(source: Buffer, byteCount: Int64): Unit {
-
         match (this.funWrite) {
             case None => ()
             case Some(v) =>
@@ -412,6 +393,6 @@ class AnonymousSink <: Sink {
      * @since 0.32.5
      */
     public override func toString(): String{
-        return this.toString()
+        return "AnonymousSink"
     }
 }

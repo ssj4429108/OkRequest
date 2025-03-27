@@ -87,7 +87,6 @@ public class BridgeInterceptor <: Interceptor {
         }
 
         var response: Response = chain.proceed(requestBuilder.build())
-        Hilog.info(3, "ok-request", "response: ${response}")
         let responseHeader: Header = response.getHeaders()
         receiveHeaders(cookieJar, request.getUrl(), responseHeader)
         let responseBuilder: ResponseBuilder = response.newBuilder().request(request)
@@ -100,7 +99,7 @@ public class BridgeInterceptor <: Interceptor {
             let contentType = response.getHeader("Content-Type", "")
             let source = response.getBody().getOrThrow().getSource()
             responseBuilder.body(
-                ResponseBody(contentType, -1, GzipSource(source).buffer())
+                ResponseBody(contentType, -1, source)
             )
         }
 

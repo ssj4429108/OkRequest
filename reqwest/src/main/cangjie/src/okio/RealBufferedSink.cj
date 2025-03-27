@@ -348,7 +348,6 @@ class RealBufferedSink <: BufferedSink {
      * @since 0.32.5
      */
     public override func write(source: Buffer, byteCount: Int64): Unit {
-        Hilog.info(3, "ok-request", "write9")
         this.buf.write(source, byteCount)
         emitCompleteSegments()
     }

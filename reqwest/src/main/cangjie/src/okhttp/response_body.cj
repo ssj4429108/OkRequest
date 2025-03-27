@@ -76,7 +76,7 @@ public open class ResponseBody <: Resource {
     }
 
     public func getString(): String {
-        return source.readByteString().toString()
+        return source.readString()
     }
 
     public func getBytes(): Array<Byte> {

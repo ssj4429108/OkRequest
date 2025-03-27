@@ -8,14 +8,11 @@
  */
 
 package ohos_app_cangjie_OkRequest.okio
+
 import ohos.hilog.Hilog
 
-
-
-
 let reentrantMutex = ReentrantMutex()
-
-let IDLE_TIMEOUT_MILLIS: Duration = Duration.nanosecond * 6000
+let IDLE_TIMEOUT_MILLIS: Duration = Duration.second * 60
 
 /**
  * The class is AsyncTimeout inherited from Timeout & Equatable<AsyncTimeout>
@@ -35,7 +32,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
 
     private var timeoutAt: Int64 = -1
 
-    protected var fun: ?()->Unit = None
+    protected var fun: ?() -> Unit = None
 
     /**
      * The Function is enter
@@ -51,20 +48,19 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
         if (timeoutNanos == 0 && !hasDeadline) {
             return; // No timeout and no deadline? Don't bother with the queue.
         }
-        inQueue = true;
+        inQueue = true
         scheduleTimeout(this, timeoutNanos, hasDeadline);
     }
 
-
-    protected open func scheduleTimeout(node: AsyncTimeout, timeoutNanos:Int64, hasDeadline:Bool):Unit {
+    protected open func scheduleTimeout(node: AsyncTimeout, timeoutNanos: Int64, hasDeadline: Bool): Unit {
         synchronized(reentrantMutex) {
             match (this.head) {
-                case None => 
+                case None =>
                     this.head = AsyncTimeout()
                     this.watchdog()
                 case _ => ()
             }
-            let now = DateTime.now(timeZone:  TimeZone.Local).nanosecond
+            let now = DateTime.now(timeZone: TimeZone.Local).nanosecond
             if (timeoutNanos != 0 && hasDeadline) {
                 node.timeoutAt = min(timeoutNanos, node.deadlineNanoTime() - now)
             } else if (timeoutNanos != 0) {
@@ -78,19 +74,17 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
             var prev = this.head.getOrThrow()
             while (true) {
                 match (prev.next) {
-                    case Some(v) => 
-                        if (remainingNanos >= v.remainingNanos(now)) {
-                            continue
-                        }
+                    case Some(v) => if (remainingNanos >= v.remainingNanos(now)) {
+                        continue
+                    }
                     case None => ()
-                } 
+                }
                 node.next = prev.next
                 prev.next = node
                 if (this.head == prev) {
                     try {
                         monitor.notify()
                     } catch (e: Exception) {
-                    	
                     }
                 }
                 break
@@ -99,10 +93,10 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
     }
 
     private func watchdog() {
-        spawn { =>
-            while (true) {
+        spawn {
+            => while (true) {
                 var timedout: ?AsyncTimeout = None
-                synchronized (lock) {
+                synchronized(lock) {
                     timedout = awaitTimeout()
                     match (timedout) {
                         case None => continue
@@ -140,7 +134,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
         return InterruptedException("timeout")
     }
 
-    protected open func timedOut(): Unit{
+    protected open func timedOut(): Unit {
         match (fun) {
             case None => ()
             case Some(v) => v()
@@ -157,10 +151,9 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
      */
     public func sink(sink: Sink): Sink {
         func subWrite(source: Buffer, byteCount: Int64): Unit {
-
             Util.checkOffsetAndCount(source.size, 0, byteCount)
             var remaining = byteCount
-            while (remaining >0) {
+            while (remaining > 0) {
                 var toWrite = 0
                 var s = source.head.getOrThrow()
                 while (toWrite < AsyncTimeout.TIMEOUT_WRITE_SIZE) {
@@ -171,26 +164,49 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
                     }
                     s = s.next.getOrThrow()
                 }
-                var throwOnTimeout = false
+
+
                 remaining -= toWrite
+
+                var throwOnTimeout = false
+                enter()
+                try {
+                    sink.write(source, toWrite)
+                    throwOnTimeout = true
+                    return
+                } catch (e: Exception) {
+                    throw if (!exit()) {
+                        e
+                    } else {
+                        newTimeoutException(e)
+                    }
+                } finally {
+                    exit(throwOnTimeout)
+                }
+
+
             }
         }
-        func subFlush (): Unit {
+        func subFlush(): Unit {
             var throwOnTimeout = false
             enter()
             try {
                 sink.flush()
                 throwOnTimeout = true
+                return
             } catch (e: Exception) {
-                throw exit(e);
+                throw if (!exit()) {
+                    e
+                } else {
+                    newTimeoutException(e)
+                }
             } finally {
-                exit(throwOnTimeout);
+                exit(throwOnTimeout)
             }
         }
-        func subTimeout (): Timeout {
+        func subTimeout(): Timeout {
             return this
         }
-        Hilog.info(3, "ok-http", "sink 2")
         let asink = AnonymousSink()
         asink.funWrite = subWrite
         asink.funFlush = subFlush
@@ -207,14 +223,14 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
      * @since 0.32.5
      */
     public func source(source: Source): Source {
-        func subRead (sink: Buffer, byteCount: Int64): Int64 {
+        func subRead(sink: Buffer, byteCount: Int64): Int64 {
             var throwOnTimeout = false
             enter()
             try {
                 let result = source.read(sink, byteCount)
                 throwOnTimeout = true
                 return result
-            } catch (e:Exception) {
+            } catch (e: Exception) {
                 throw exit(e)
             } finally {
                 exit(throwOnTimeout)
@@ -236,7 +252,9 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
         return newTimeoutException(e)
     }
     func exit(throwOnTimeout: Bool) {
-        if (exit() && throwOnTimeout) {
+        let exit = exit()
+        Hilog.info(3, "ok-request", "exit: ${exit}")
+        if (exit && throwOnTimeout) {
             throw newTimeoutException()
         }
     }
@@ -247,7 +265,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
      * @return Type of Bool
      * @since 0.32.5
      */
-    public func exit() : Bool {
+    public func exit(): Bool {
         if (!inQueue) {
             return false
         }
@@ -262,12 +280,11 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
             while (true) {
                 match (prev) {
                     case None => break
-                    case Some(v) => 
-                        if (v.next.getOrThrow() == node) {
-                            v.next = node.next
-                            node.next = None
-                            return false
-                        }
+                    case Some(v) => if (v.next.getOrThrow() == node) {
+                        v.next = node.next
+                        node.next = None
+                        return false
+                    }
                 }
             }
             return true
@@ -282,7 +299,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
      * @return Type of Bool
      * @since 0.32.5
      */
-    public operator func == (that: AsyncTimeout): Bool {
+    public operator func ==(that: AsyncTimeout): Bool {
         return refEq(this, that)
     }
     /**
@@ -293,7 +310,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
      * @return Type of Bool
      * @since 0.32.5
      */
-    public operator func != (that: AsyncTimeout): Bool {
+    public operator func !=(that: AsyncTimeout): Bool {
         return !refEq(this, that)
     }
 
@@ -306,13 +323,13 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
     public func awaitTimeout(): ?AsyncTimeout {
         let node = head
         match (node) {
-            case None => 
+            case None =>
                 let start = DateTime.now()
                 monitor.wait(timeout: IDLE_TIMEOUT_MILLIS)
                 if (match (head.getOrThrow().next) {
                     case None => true
                     case _ => false
-                } &&  Duration.nanosecond >= IDLE_TIMEOUT_MILLIS) {
+                } && Duration.nanosecond >= IDLE_TIMEOUT_MILLIS) {
                     return head
                 } else {
                     return None
@@ -324,7 +341,7 @@ open class AsyncTimeout <: Timeout & Equatable<AsyncTimeout> {
                     waitNanos = waitNanos - (waitMillis * 1000000)
                     monitor.wait(timeout: Duration.nanosecond * (waitNanos + waitMillis))
                     return None
-                } 
+                }
                 head.getOrThrow().next = node.getOrThrow().next
                 node.getOrThrow().next = None
                 return node

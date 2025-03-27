@@ -201,7 +201,6 @@ public class Cache <: Resource {
     }
 
     public func flush(): Unit {
-Hilog.info(3, "ok-request", "flush1112")
         cache.flush()
     }
 
@@ -425,13 +424,11 @@ class CacheRequest <: Sink {
     }
     
     public func write(source: Buffer, byteCount: Int64): Unit {
-        Hilog.info(3, "ok-request", "write1")
         this.cacheOut.write(source, byteCount)    
     }
     
 
     public func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1113")
         this.cacheOut.flush()
     }
 

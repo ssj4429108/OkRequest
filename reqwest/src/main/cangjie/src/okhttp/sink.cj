@@ -27,7 +27,6 @@ class KnownLengthSink <: Sink {
 
     public override func write(source: Buffer, byteCount: Int64) {
 
-        Hilog.info(3, "ok-request", "write2")
         if (closed) {
             throw IllegalStateException("closed")
         }
@@ -42,7 +41,6 @@ class KnownLengthSink <: Sink {
             return
         }
 
-        Hilog.info(3, "ok-request", "sink: 1")
         exchange.sink.flush()
     }
 
@@ -99,7 +97,6 @@ class ChunkedSink <: Sink {
 
     public override func write(source: Buffer, byteCount: Int64): Unit {
 
-        Hilog.info(3, "ok-request", "write3")
         if (closed) {
             throw IllegalStateException("closed")
         }
@@ -118,8 +115,6 @@ class ChunkedSink <: Sink {
             return
         }
 
-
-        Hilog.info(3, "ok-request", "sink: 2")
         exchange.sink.flush()
     }
 
@@ -178,7 +173,6 @@ class RequestBodySink <: ForwardingSink {
 
     public override func write(source: Buffer, byteCount: Int64) {
 
-        Hilog.info(3, "ok-request", "write4")
         if (closed) {
             throw IllegalStateException("closed")
         }
@@ -197,8 +191,6 @@ class RequestBodySink <: ForwardingSink {
 
     public override func flush(): Unit {
 
-
-        Hilog.info(3, "ok-request", "sink: 3")
         try {
             sink.flush()
         } catch (e: HttpException) {
@@ -279,7 +271,6 @@ public class RealBufferSink <: BufferedSink {
 
     public override func write(source: Buffer, byteCount: Int64): Unit {
 
-        Hilog.info(3, "ok-request", "write5")
         commonWrite(source, byteCount)
     }
 
@@ -405,9 +396,6 @@ public class RealBufferSink <: BufferedSink {
     }
 
     public override func flush() {
-
-
-        Hilog.info(3, "ok-request", "sink: 4")
         return commonFlush()
     }
     
@@ -718,8 +706,6 @@ class FramingSink <: Sink {
         this.finished = outFinished
     }
     public func write(source: Buffer, byteCount: Int64): Unit {
-
-        Hilog.info(3, "ok-request", "write6")
         sendBuffer.write(source.readByteArray(byteCount))
         while(sendBuffer.size >= EMIT_BUFFER_SIZE) {
             emitFrame(false)
@@ -743,7 +729,6 @@ class FramingSink <: Sink {
     }
 
     public override func flush(): Unit {
-        Hilog.info(3, "ok-request", "sink: 5")
         synchronized(http2Stream.mutex) {
             http2Stream.checkOutNotClosed()
         }
@@ -837,13 +822,10 @@ class FileSink <: Sink {
     }
 
     public func write(source: Buffer, byteCount: Int64) {
-        Hilog.info(3, "ok-request", "write7")
         file.write(source.readByteArray(byteCount))   
     }
  
     public func flush(): Unit {
-
-        Hilog.info(3, "ok-request", "sink: 6")
         file.flush()
     }
 
@@ -874,8 +856,6 @@ class FaultHidingSink <: ForwardingSink {
     }
 
     public override func write(source: Buffer, byteCount: Int64): Unit {
-
-        Hilog.info(3, "ok-request", "write8")
         if (hasErrors) {
             return
         }
@@ -889,7 +869,6 @@ class FaultHidingSink <: ForwardingSink {
     }
 
     public override func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1118")
         if (hasErrors) {
             return
         }

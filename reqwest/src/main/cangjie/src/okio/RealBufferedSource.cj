@@ -62,8 +62,6 @@ class RealBufferedSource <: BufferedSource {
         if (closed) {
             throw IllegalArgumentException("closed")
         }
-
-        Hilog.info(3, "ok-request", "read buf")
         if (this.buf.size == 0) {
             let read = this.source.read(this.buf, Segment.SIZE)
             if (read == -1) {
@@ -401,12 +399,9 @@ class RealBufferedSource <: BufferedSource {
         } else {
             limit + 1
         }
-            Hilog.info(3, "ok-request", "read head line 1: ${this.buf}")
         let newLine = indexOf(let_LF, 0, scanLength)
 
-            Hilog.info(3, "ok-request", "read head new line 1: ${newLine}")
         if (newLine != -1) {
-            Hilog.info(3, "ok-request", "read head line 2")
             return this.buf.readUtf8Line(newLine)
         }
         if(scanLength < Int64.Max) {
@@ -414,8 +409,6 @@ class RealBufferedSource <: BufferedSource {
                 if (request(scanLength + 1)) {
                     if (this.buf.getInt8(scanLength - 1) == let_CR) {
                         if (this.buf.getInt8(scanLength) == let_LF) {
-
-            Hilog.info(3, "ok-request", "read head line 3")
                             return this.buf.readUtf8Line(scanLength)
                         }
 
@@ -424,7 +417,6 @@ class RealBufferedSource <: BufferedSource {
             }
         }
 
-            Hilog.info(3, "ok-request", "read head line 4")
         let data = Buffer()
         this.buf.copyTo(data, 0, min(32, this.buf.size))
         throw EOFException("\\n not found: limit= ${min(this.buf.size, limit)} content= ${data.readByteString().hex()} …")
@@ -628,23 +620,17 @@ class RealBufferedSource <: BufferedSource {
             throw  IllegalArgumentException("fromIndex=${fromIndex} toIndex=${toIndex}")
         }
         while (fromIndex < toIndex) {
-            Hilog.info(3, "ok-request", "buf:${this.buf}")
             let result = this.buf.indexOf(b, fromIndex, toIndex)
 
-            Hilog.info(3, "ok-request", "result:${result}")
             if (result != -1) {
                 return result
             }
             let lastBufferSize = this.buf.size
             if (lastBufferSize >= toIndex || source.read(this.buf, Segment.SIZE) == -1){
-
-            Hilog.info(3, "ok-request", "result1: -1")
-                 return -1
+                return -1
             }
             fromIndex = max(fromIndex, lastBufferSize)
         }
-
-            Hilog.info(3, "ok-request", "buf2:${this.buf}")
         return -1
     }
 

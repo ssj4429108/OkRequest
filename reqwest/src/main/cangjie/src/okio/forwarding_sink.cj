@@ -70,7 +70,6 @@ public open class ForwardingSink <: Sink {
      * @since 0.33.3
      */
     public open override func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1111312")
         sink.flush()
     }
 

@@ -172,6 +172,7 @@ public class Http1ExchangeCodec <: ExchangeCodec {
         }
         var buffer: StringBuilder = StringBuilder()
         buffer.append(requestLine + CRLF)
+
         for ((ks, v) in headers) {
             // var k = HeaderDfaUtil.canonicalHeaderKey(ks)
             var k = ks
@@ -186,6 +187,7 @@ public class Http1ExchangeCodec <: ExchangeCodec {
 
         buffer.append(CRLF_STR)
         sink.write(buffer.toString().toUtf8Array())
+        Hilog.info(3, "ok-request", "request: ${buffer.toString()}")
         state = STATE_OPEN_REQUEST_BODY
     }
 
@@ -218,10 +220,8 @@ public class Http1ExchangeCodec <: ExchangeCodec {
     }
 
     private func readHeaderLine(): String {
-        Hilog.info(3, "ok-request", "start read headerline: ${headerLimit}")
         let line = source.readUtf8LineStrict(headerLimit)
         headerLimit -= line.getOrThrow().size
-        Hilog.info(3, "ok-request", "end read headerline: ${line.getOrThrow()}")
         return line.getOrThrow()
     }
 
@@ -280,19 +280,23 @@ public class Http1ExchangeCodec <: ExchangeCodec {
     }
     public func openResponseBodySource(response: Response): Source {
         if (!hasBody(response)) {
+            Hilog.info(3, "ok-request", "fixed: 0")
             return newFixedLengthSource(0)
         }
 
         if ("chunked" == response.getHeader("Transfer-Encoding", "").toLower()) {
+            Hilog.info(3, "ok-request", "checked")
             return newChunkedSource(response.getRequest().getUrl())
         }
 
         let contentLength: Int64 = contentLength(response)
 
         if (contentLength != -1) {
+            Hilog.info(3, "ok-request", "fixed: ${contentLength}")
             return newFixedLengthSource(contentLength)
         }
 
+        Hilog.info(3, "ok-request", "unknown")
         return newUnknownLengthSource()
     }
 

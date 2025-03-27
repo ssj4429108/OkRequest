@@ -450,7 +450,6 @@ class DiskLruCache {
     }
 
     func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1114")
         synchronized(lock) {
             if (!initialized) {
                 return

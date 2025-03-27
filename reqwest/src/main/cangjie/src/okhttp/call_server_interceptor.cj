@@ -86,7 +86,6 @@ public class CallServerInterceptor <: Interceptor {
 
         Hilog.info(3, 'ok-request', "response start")
         let response: Response = responseBuilder.getOrThrow().request(request).build()
-        Hilog.info(3, 'ok-request', "response end")
         return checkResponse(exchange, request, response, sentRequestMillis)
     }
 
@@ -122,6 +121,8 @@ public class CallServerInterceptor <: Interceptor {
                 case None => ()
             }
         }
+        let body = response.body.getOrThrow()
+        Hilog.info(3, 'ok-request', "response end: ${body.contentLength}")
         return response
     }
 }

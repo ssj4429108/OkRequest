@@ -439,7 +439,6 @@ public class Buffer <: Object &  BufferedSource & BufferedSink & Equatable<Buffe
      * @since 0.32.5
      */
     public override func flush(): Unit {
-        Hilog.info(3, "ok-request", "flush1111")
     }
 
     /**
@@ -1640,7 +1639,6 @@ public class Buffer <: Object &  BufferedSource & BufferedSink & Equatable<Buffe
      * @since 0.32.5
      */
     public override func write(source: Buffer, bytecount: Int64): Unit {
-        Hilog.info(3, "ok-request", "write10")
         if (source == this) {
             throw IllegalArgumentException("source == this")
         }

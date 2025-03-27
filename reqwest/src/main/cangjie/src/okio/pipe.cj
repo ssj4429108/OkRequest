@@ -127,7 +127,6 @@ class PipeSink <: Sink {
     }
 
     public override func flush() {
-        Hilog.info(3, "ok-request", "flush111xxasa1")
         var sink: ?Sink = Option.None
         synchronized(monitor){
             if (sinkClosed) {

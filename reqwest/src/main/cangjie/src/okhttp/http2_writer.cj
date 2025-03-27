@@ -93,7 +93,6 @@ class Http2Writer {
     }
 
     func flush() {
-        Hilog.info(3, "ok-request", "flush1116")
         synchronized(mutex) {
             if (closed) {
                 throw HttpException("closed")
