@@ -1,2 +1,0 @@
-package ohos_app_cangjie_OkRequest
-

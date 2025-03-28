@@ -59,3 +59,6 @@
 
 ### 1.0.14 / 2025-3-17
 - 修复文件上传content-type错误的问题
+
+### 1.0.15 / 2025-3-28
+- 底层使用rust reqwest 替换httpclient4cj

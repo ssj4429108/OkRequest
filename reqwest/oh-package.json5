@@ -1,7 +1,7 @@
 {
   "name": "@axzo/ok-request",
-  "version": "1.0.14",
-  "description": "OkRequest 是一个基于Httpclient4cj(OkHttp)的高效率 ArkTs HTTP 客户端",
+  "version": "1.0.15",
+  "description": "Request 是一个基于 Rust reqwest 的高效率 ArkTs HTTP 客户端",
   "main": "Index.ets",
   "author": "skipper",
   "license": "Apache-2.0",
@@ -12,7 +12,6 @@
     "HarmonyOS",
     "request",
     "http",
-    "OkHttp",
     "reqwest"
   ],
   "tags": [
