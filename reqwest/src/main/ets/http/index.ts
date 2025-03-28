@@ -1,25 +1,32 @@
-import { ArkHttpClient, ArkRequest, ArkResponse, ArkHeader, CustomLib } from "ok_request_api.so";
-import { requireCJLib } from "libark_interop_loader.so";
 import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
+import oh_request from 'libohos_reqwest.so'
 
 export class OkHttpClient {
-  protected baseApi: CustomLib | undefined;
-  protected client: ArkHttpClient | undefined;
+  protected client: oh_request.ArkHttpClient | undefined;
 
-  private requestCache: Map<string, ArkRequest> = new Map()
 
   private config: OkConfig
 
   constructor(config: OkConfig) {
-    this.baseApi = requireCJLib('libohos_app_cangjie_OkRequest.so') as CustomLib
-
-    let protocols = config.protocols?.map((item) => item.valueOf()) || undefined
-    let tlsConfig = undefined
+    let tlsConfig: oh_request.TlsConfig | undefined = undefined
     if (config.tlsConfig) {
-      tlsConfig = new this.baseApi.ArkTlsConfig(config.tlsConfig.verifyMode.valueOf(), config.tlsConfig.pem)
+      tlsConfig = {
+        clientCert: config.tlsConfig.clientCert,
+        caCert: config.tlsConfig.caCert?.map((item) => {
+          return {
+            cert: item.cert,
+            ty: item.ty
+          }
+        }) ?? []
+      }
+    }
+
+    let clientConfig: oh_request.Config = {
+      timeout: config.timeout,
+      tls: tlsConfig
     }
     this.client =
-      new this.baseApi.ArkHttpClient(config.timeout, config.maxConnections, protocols, tlsConfig)
+      new oh_request.ArkHttpClient(clientConfig)
     this.config = config
   }
 
@@ -79,60 +86,15 @@ export class OkHttpClient {
     return requestBuilder
   }
 
-  createHeader(name: string, value: string): ArkHeader {
-    return new this.baseApi!.ArkHeader(name, value)
-  }
-
-
-  private createRealRequestSync(request: Request): ArkRequest {
-    let bytes = request.body?.bytesSync() || undefined
-    let dns = undefined
-    if (request.dnsInfo) {
-      dns = JSON.stringify(request.dnsInfo)
-    }
-    let cacheControl = undefined
-    if (request.cacheControl) {
-      cacheControl =
-        new this.baseApi.ArkCacheControl(request.cacheControl.noCacheBuild, request.cacheControl.noStoreBuild,
-          request.cacheControl.maxAgeSeconds ?? -1, request.cacheControl.maxStaleSeconds ?? -1,
-          request.cacheControl.minFreshSeconds ?? -1, request.cacheControl.onlyIfCachedBuild,
-          request.cacheControl.noTransformBuild, request.cacheControl.immutableBuild)
-    }
-    let realRequest = new this.baseApi!.ArkRequest(
-      request.url,
-      request.method?.valueOf() || undefined,
-      request.headers,
-      request.mediaType ? request.mediaType : "application/json; charset=utf-8",
-      bytes,
-      dns,
-      cacheControl
-    )
-    return realRequest
-  }
-
-  private async createRealRequest(request: Request): Promise<ArkRequest> {
+  private async createRealRequest(request: Request): Promise<oh_request.ArkRequest> {
     let bytes = await request.body?.bytes() || undefined
-    let dns = undefined
-    if (request.dnsInfo) {
-      dns = JSON.stringify(request.dnsInfo)
+    let realRequest: oh_request.ArkRequest = {
+      url: this.generateUrl(request.url),
+      method: request.method,
+      headers: request.headers,
+      body: bytes,
+      dns: undefined
     }
-    let cacheControl = undefined
-    if (request.cacheControl) {
-      cacheControl =
-        new this.baseApi.ArkCacheControl(request.cacheControl.noCacheBuild, request.cacheControl.noStoreBuild,
-          request.cacheControl.maxAgeSeconds ?? -1, request.cacheControl.maxStaleSeconds ?? -1,
-          request.cacheControl.minFreshSeconds ?? -1, request.cacheControl.onlyIfCachedBuild,
-          request.cacheControl.noTransformBuild, request.cacheControl.immutableBuild)
-    }
-    let realRequest = new this.baseApi!.ArkRequest(
-      request.url,
-      request.method?.valueOf() || undefined,
-      request.headers,
-      request.mediaType ? request.mediaType : "application/json; charset=utf-8",
-      bytes,
-      dns,
-      cacheControl
-    )
     return realRequest
   }
 
@@ -144,7 +106,7 @@ export class OkHttpClient {
     })
 
     let realRequest = await this.createRealRequest(request)
-    this.requestCache.set(request.requestId, realRequest)
+    // this.requestCache.set(request.requestId, realRequest)
 
     let result = await this.send(request, realRequest)
 
@@ -154,45 +116,15 @@ export class OkHttpClient {
     return result
   }
 
-  executeSync(request: Request): Response | undefined {
-    this.checkLoadedSO()
-
-      this.config.requestInterceptors.forEach((interceptor) => {
-      request = interceptor.intercept(request)
-    })
-
-    let realRequest = this.createRealRequestSync(request)
-    this.requestCache.set(request.requestId, realRequest)
-
-    let result = this.sendSync(request, realRequest)
-
-    this.config.responseInterceptors.forEach((interceptor) => {
-      result = interceptor.intercept(result)
-    })
-    return result
-  }
-
-  protected sendSync(request: Request, realRequest: ArkRequest): Response | undefined {
-    let result: ArkResponse | undefined
+  protected async send(request: Request, realRequest: oh_request.ArkRequest, signal?: any): Promise<Response | undefined> {
+    let result: oh_request.ArkResponse | undefined
+    if (signal) {
+      signal.addEventListener(('abort'), () => {
+        throw Error('request aborted by signal.')
+      })
+    }
     try {
-      result = this.baseApi!.sendSync(this.client, realRequest)
-    } catch (e) {
-      throw e
-    }
-    if (!result) {
-      return undefined
-    }
-    let response = new Response(result, request)
-    if (!response.successfully) {
-      throw new HttpError(request, response.code, response.body)
-    }
-    return response
-  }
-
-  protected async send(request: Request, realRequest: ArkRequest): Promise<Response | undefined> {
-    let result: ArkResponse | undefined
-    try {
-      result = await this.baseApi!.send(this.client, realRequest)
+      result = await this.client.send(realRequest)
     } catch (e) {
       throw e
     }
@@ -207,27 +139,8 @@ export class OkHttpClient {
   }
 
   private checkLoadedSO() {
-    if (!this.baseApi) {
-      throw new SyntaxError('need loaded base_api.so')
+    if (!this.client) {
+      throw new SyntaxError('need loaded libohos_reqwest.so')
     }
-  }
-
-  cancelAll() {
-    this.requestCache.forEach((request) => {
-      this.cancelRequest(request)
-    })
-  }
-
-  cancel(request: Request) {
-    let realRequest = this.requestCache.get(request.requestId)
-    if (!realRequest) {
-      return
-    }
-    this.cancelRequest(realRequest)
-  }
-
-  private cancelRequest(request: ArkRequest) {
-    this.checkLoadedSO()
-    this.baseApi!.cancel(request)
   }
 }

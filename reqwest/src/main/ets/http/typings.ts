@@ -1,4 +1,3 @@
-import { ArkResponse, ArkResponseBody, ArkHeader } from "ok_request_api.so"
 import util from '@ohos.util'
 import { OkHttpClient } from "."
 import { JSON } from "@kit.ArkTS"
@@ -6,6 +5,7 @@ import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit'
 import systemDateTime from "@ohos.systemDateTime"
 import { ByteArrayStream } from "../stream"
 import { socket } from "@kit.NetworkKit"
+import oh_request from 'libohos_reqwest.so'
 
 
 export interface RequestInterceptor {
@@ -17,10 +17,11 @@ export interface ResponseInterceptor {
 }
 
 export enum Protocol {
-  HTTP_1_0 = 'http/1.0',
-  HTTP_1_1 = 'http/1.1',
-  HTTP_2 = 'h2',
-  H2_PRIOR_KNOWLEDGE = 'h2_prior_knowledge'
+  HTTP_0_9 = "HTTP/0.9",
+  HTTP_1_0 = "HTTP/1.0",
+  HTTP_1_1 = "HTTP/1.1",
+  HTTP_2 = "HTTP/2.0",
+  HTTP_3 = "HTTP/3.0",
 }
 
 export enum VerifyMode {
@@ -29,9 +30,14 @@ export enum VerifyMode {
   CUSTOM = 'Custom'
 }
 
+export interface Cert {
+  cert: string
+  ty: string
+}
+
 export interface TlsConfig {
-  verifyMode: VerifyMode | VerifyMode.DEFAULT
-  pem: string | undefined
+  caCert?: Array<Cert>
+  clientCert?: string
 }
 
 export interface Dns {
@@ -76,13 +82,12 @@ export interface OkConfig {
 
   tlsConfig: TlsConfig | undefined
 
-  dns: Dns | undefined
 }
 
 export class Request {
   readonly url: string
   readonly method?: HttpMethod | undefined
-  readonly headers: Array<ArkHeader> = []
+  readonly headers?: Record<string,string>
   readonly mediaType?: string | undefined
   readonly body?: RequestBody | undefined
 
@@ -454,7 +459,7 @@ export class RequestBuilder {
   readonly client: OkHttpClient
   url: string
   method?: HttpMethod
-  headers: Array<ArkHeader> = []
+  headers: Record<string, string> = {}
   body?: RequestBody
   mediaType?: string
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
@@ -464,23 +469,23 @@ export class RequestBuilder {
     this.client = client
   }
 
-  head(name: string, value: string): RequestBuilder {
-    this.setHead(name, value)
+  head(header: Record<string, string>): RequestBuilder {
+    this.setHead(header)
     return this
   }
 
-  private setHead(name: string, value: string) {
-    let filters = this.headers.filter((item) => {
-      return item.name == name
-    })
-    if (filters.length == 0) {
-      let header = this.client.createHeader(name, value)
-      this.headers.push(header)
+  private setHead(header: Record<string, string>) {
+    this.headers = {
+      ...this.headers,
+      ...header
     }
   }
 
+
   bearerAuth(token: string): RequestBuilder {
-    this.setHead('Authorization', `Bearer ${token}`)
+    this.setHead({
+      Authorization: `Bearer ${token}`
+    })
     return this
   }
 
@@ -492,14 +497,18 @@ export class RequestBuilder {
   }
 
   form(form: Record<string, any>): RequestBuilder {
-    this.setHead('Content-Type', 'application/x-www-form-urlencoded')
+    this.setHead({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    })
     this.mediaType = 'application/x-www-form-urlencoded'
     this.body = new TextRequestBody(this.toUrlencoded(form), 'application/x-www-form-urlencoded')
     return this
   }
 
   json(data: Record<string, any> | any): RequestBuilder {
-    this.setHead('Content-Type', 'application/json; charset=utf-8')
+    this.setHead({
+      'Content-Type': 'application/json; charset=utf-8'
+    })
     this.mediaType = 'application/json; charset=utf-8'
     this.body = new TextRequestBody(JSON.stringify(data), 'application/json; charset=utf-8')
     return this
@@ -511,21 +520,27 @@ export class RequestBuilder {
   }
 
   file(fileBody: FileBody): RequestBuilder {
-    this.setHead('Content-Type', fileBody.contentType())
+    this.setHead({
+      'Content-Type': fileBody.contentType()
+    })
     this.mediaType = fileBody.contentType()
     this.body = fileBody
     return this
   }
 
   multipart(multipartBody: MultipartBody): RequestBuilder {
-    this.setHead('Content-Type', multipartBody.contentType())
+    this.setHead({
+      'Content-Type': multipartBody.contentType()
+    })
     this.mediaType = multipartBody.contentType()
     this.body = multipartBody
     return this
   }
 
   data(body: RequestBody, contentType: string): RequestBuilder {
-    this.setHead('Content-Type', contentType)
+    this.setHead({
+      'Content-Type': contentType
+    })
     this.mediaType = contentType
     this.body = body
     return this
@@ -554,11 +569,6 @@ export class RequestBuilder {
   send(): Promise<Response | undefined> {
     let request = this.build()
     return this.client.execute(request)
-  }
-
-  sendSync(): Response | undefined {
-    let request = this.build()
-    return this.client.executeSync(request)
   }
 }
 
@@ -644,7 +654,7 @@ export enum HttpMethod {
 
 export class Response {
   readonly code: HttpStatusCode
-  readonly headers: Array<ArkHeader> = []
+  readonly headers: Record<string, string> | undefined
   readonly body: ResponseBody | undefined
   readonly message: string
 
@@ -652,17 +662,17 @@ export class Response {
 
   readonly request: Request
 
-  constructor(response: ArkResponse, request: Request) {
+  constructor(response: oh_request.ArkResponse, request: Request) {
     this.request = request
     this.code = response.code as HttpStatusCode
-    this.headers = JSON.parse(response.headers) as Array<ArkHeader>
+    this.headers = response.headers
     let responseBody: ResponseBody | undefined
     if (response.body) {
       responseBody = new ResponseBody(response.body)
     }
     this.body = responseBody
     this.message = response.message
-    this.successfully = response.isSuccess
+    this.successfully = response.code >= 200 && response.code < 300
   }
 
   text(): string | undefined {
@@ -681,11 +691,10 @@ export class Response {
 export class ResponseBody {
   readonly data: ArrayBuffer | undefined
   readonly contentTypeString: string
-  readonly contentLength: number
+  readonly contentLength: bigint
 
-  constructor(responseBody: ArkResponseBody) {
-    this.data = responseBody.data
-    this.contentTypeString = responseBody.contentTypeString
+  constructor(responseBody: oh_request.ArkResponseBody) {
+    this.data = responseBody.body
     this.contentLength = responseBody.contentLength
   }
 

@@ -13,12 +13,7 @@ const config: OkConfig = {
   maxConnections: 5,
   baseUrl: undefined,
   protocols: undefined,
-  tlsConfig: {
-    verifyMode: VerifyMode.ALL,
-    pem: undefined
-  },
-  dns: undefined,
-
+  tlsConfig: undefined
 }
 
 class AxzHttpResponse<T> {
@@ -65,12 +60,12 @@ struct Index {
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .onClick(() => {
-          try {
-            let resp = this.client.get('https://www.baidu.com').sendSync()
-            console.log(resp?.text())
-          } catch (e) {
-
-          }
+          // try {
+          //   let resp = this.client.get('https://www.baidu.com').sendSync()
+          //   console.log(resp?.text())
+          // } catch (e) {
+          //   console.error(e)
+          // }
         })
     }
     .height('100%')

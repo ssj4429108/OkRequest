@@ -13,6 +13,7 @@ import std.io.ByteArrayStream
 import encoding.json.stream.JsonWriter
 import ohos.hilog.Hilog
 import encoding.json.stream.WriteConfig
+import net.http.HttpResponse
 
 @Interop[ArkTS]
 public class ArkResponse <: ToString {
@@ -88,26 +89,38 @@ public class ArkResponse <: ToString {
 }
 
 
-extend Response {
+extend HttpResponse {
     public func toArkResponse(): ArkResponse {
-        let respHeaders = this.getHeaders()
+        let respHeaders = this.trailers
         var headers = None<String>
+
         if (!respHeaders.iterator().isEmpty()) {
             let stream = ByteArrayStream()
             let writer = JsonWriter(stream)
-            writer.writeValue(this.getHeaders())
+            writer.startArray()
+            respHeaders.iterator().forEach { header =>
+                let name = header[0]
+                let value = String.join(header[1].toArray(), delimiter: ";")
+                writer.startObject()
+                writer.writeName('name').writeValue(name)
+                writer.writeName('value').writeValue(value)
+                writer.endObject()
+            }
+            writer.endArray()
+            writer.flush()
             headers = Some(String.fromUtf8(stream.readToEnd()))
         }
-        let arkResponseBody = match (this.getBody()) {
-            case Some(body) =>
-                let contentType = match (body.getContentType()) {
-                    case Some(contentType) => contentType.toString()
-                    case None => ""
-                }
-                ArkResponseBody(contentType, body.getContentLength(), body.getBytes())
-            case None => None<ArkResponseBody>
+        let contentLength = bodySize.getOrThrow()
+        let buffer = Array<Byte>(contentLength, item: 0)
+        let length = body.read(buffer)
+        let arkResponseBody = if (length > 0) {
+            let contentType = String.join(this.trailers.get("Content-Type").toArray(), delimiter: ";")
+            ArkResponseBody(contentType, contentLength, buffer)
+        } else {
+            None<ArkResponseBody>
         }
-        return ArkResponse(this.getRequest().getUrl().toString(), this.getProtocol().toString(), this.getCode(), headers,
-            arkResponseBody, this.getMessage())
+        let request = this.request.getOrThrow()
+        return ArkResponse(request.url.toString(), this.version.toString(), Int64(this.status), headers,
+            arkResponseBody, "")
     }
 }

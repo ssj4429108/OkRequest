@@ -19,8 +19,6 @@
     "Network"
   ],
   "dependencies": {
-    "libark_interop_loader.so": "file:./src/main/cangjie/loader",
-
-    "ok_request_api.so": "file:./src/main/cangjie/ark_interop_api",
+    "libohos_reqwest.so": "file:./src/main/cpp/types/libohos_reqwest"
   }
 }

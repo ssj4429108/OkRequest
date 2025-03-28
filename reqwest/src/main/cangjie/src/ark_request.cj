@@ -29,18 +29,31 @@ public class ArkHeader <: ToString {
 
 @Interop[ArkTS, Async]
 public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
+    let realClient = client.getRealClient()
     request.requestFuture = spawn {
-        let realRequest = request.buildRealRequest()
-        let response = try {
-            client.getRealClient().newCall(realRequest).execute()
-        } catch (e: Exception) {
-            throw e
+        let method: String = request.method.getOrThrow()
+        let response = match (request.method) {
+            case Some(method) =>
+                let requestMethod = method
+                match (requestMethod) {
+                    case "GET" => realClient.get(request.url)
+                    case "POST" => realClient.post(request.url, request.body.getOrThrow())
+                    case "PUT" => realClient.put(request.url, request.body.getOrThrow())
+                    //                case "PATCH" => client.
+                    case "DELETE" => realClient.delete(request.url)
+                    case "OPTIONS" => realClient.options(request.url)
+                    case _ => realClient.get(request.url)
+                }
+            case None => realClient.get(request.url)
         }
+
         request.cacheDns()
         if (Thread.currentThread.hasPendingCancellation) {
             return None<ArkResponse>
         }
-        return response.toArkResponse()
+        let resp = response.toArkResponse()
+//        client.close()
+        return resp
     }
     return match (request.requestFuture) {
         case Some(requestFuture) => requestFuture.get()
@@ -50,18 +63,29 @@ public func send(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse
 
 @Interop[ArkTS]
 public func sendSync(client: ArkHttpClient, request: ArkRequest): Option<ArkResponse> {
-    let realRequest = request.buildRealRequest()
-    let response = try {
-        client.getRealClient().newCall(realRequest).execute()
-    } catch (e: Exception) {
-        throw e
+    let realClient = client.getRealClient()
+    let method: String = request.method.getOrThrow()
+    let response = match (request.method) {
+        case Some(method) =>
+            let requestMethod = method
+            match (requestMethod) {
+                case "GET" => realClient.get(request.url)
+                case "POST" => realClient.post(request.url, request.body.getOrThrow())
+                case "PUT" => realClient.put(request.url, request.body.getOrThrow())
+                //                case "PATCH" => client.
+                case "DELETE" => realClient.delete(request.url)
+                case "OPTIONS" => realClient.options(request.url)
+                case _ => realClient.get(request.url)
+            }
+        case None => realClient.get(request.url)
     }
 
     request.cacheDns()
     if (Thread.currentThread.hasPendingCancellation) {
         return None<ArkResponse>
     }
-    return response.toArkResponse()
+    let resp = response.toArkResponse()
+    return resp
 }
 
 @Interop[ArkTS]
@@ -196,8 +220,7 @@ public class ArkRequest {
                 for (i in 0..headers.size) {
                     let header = headers.get(i)
                     match (header) {
-                        case Some(header) =>
-                            headerBuilder.add(header.name, header.value)
+                        case Some(header) => headerBuilder.add(header.name, header.value)
                         case None => ()
                     }
                 }

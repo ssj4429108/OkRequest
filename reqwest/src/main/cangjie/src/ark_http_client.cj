@@ -10,6 +10,8 @@ import ohos.ark_interop_macro.*
 import net.tls.*
 import crypto.x509.X509Certificate
 import std.collection.ArrayList
+import net.http.ClientBuilder
+import net.http.Client
 
 
 
@@ -17,32 +19,13 @@ import std.collection.ArrayList
 public class ArkHttpClient {
 
     @Interop[ArkTS, Invisible]
-    let realClient: HttpClient
+    let realClient: Client
     public init(timeout: Int64, maxConnections: Int64, protocols: Option<JSArrayEx<String>>, arkTlsConfig: Option<ArkTlsConfig>) {
         let connectionPool = ConnectionPool(maxIdleConnections: maxConnections)
-        let builder = HttpClient.builder()
-            .connectTimeout(Duration.second * timeout)
+        let builder = ClientBuilder()
+            .maxConcurrentStreams(UInt32(maxConnections))
             .readTimeout(Duration.second * timeout)
             .writeTimeout(Duration.second * timeout)
-            .connectionPool(Some(connectionPool))
-        
-        let clientProtocols = match (protocols) {
-            case Some(protocols) =>
-                let pArrayList = ArrayList<String>()
-                for (i in 0..protocols.size) {
-                    let protocol = protocols.get(i)
-                    match (protocol) {
-                    	case Some(protocol) => pArrayList.append(protocol)
-                        case None => ()
-                    }
-                }
-                if (pArrayList.isEmpty()) {
-                    pArrayList.append(Protocol.get("HTTP/1.1").toString())
-                }
-                pArrayList
-            case None => ArrayList<String>([Protocol.get("HTTP/1.1").toString()])
-        }
-        builder.protocols(clientProtocols)
 
         let tlsConfig = match (arkTlsConfig) {
             case Some(arkTlsConfig) =>
@@ -72,7 +55,7 @@ public class ArkHttpClient {
     }
 
     @Interop[ArkTS, Invisible]
-    public func getRealClient(): HttpClient {
+    public func getRealClient(): Client {
 
         return realClient
     }
