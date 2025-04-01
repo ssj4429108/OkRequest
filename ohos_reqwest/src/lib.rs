@@ -44,16 +44,21 @@ impl ArkResponse {
                 headers.insert(key.to_string(), val.to_string());
             }
         }
-        let content_length = resp.content_length();
-        let body = if content_length.is_some() && content_length.unwrap() > 0 {
-            let res = resp.bytes().await.map_err(|e| Error::from_reason(e.to_string()))?; // 避免 `unwrap()`
-            Some(ArkResponseBody {
-                body: Buffer::from(res.to_vec()), // 直接使用 `Buffer::from(res)`，避免 `to_vec()`
-                content_length: BigInt::from(content_length.unwrap_or(0)),
-            })
-        } else {
-            None
-        };
+        // let content_length = resp.content_length();
+        // // hilog_info!(format!("content-length:{:?}", content_length));
+        // // let body = if content_length.is_some() && content_length.unwrap() > 0 {
+        // //     let res = resp.bytes().await.map_err(|e| Error::from_reason(e.to_string()))?; // 避免 `unwrap()`
+            
+        // // } else {
+        // //     None
+        // // };
+
+        let res = resp.bytes().await.map_err(|e| Error::from_reason(format!("{:?}", e)))?;
+        let content_length: u64 = res.len().try_into().unwrap();
+        let body = Some(ArkResponseBody {
+            body: Buffer::from(res.to_vec()), // 直接使用 `Buffer::from(res)`，避免 `to_vec()`
+            content_length: BigInt::from(content_length),
+        });
         
         let resp = ArkResponse {
             code: status.as_u16(),
@@ -176,6 +181,7 @@ impl ArkHttpClient {
     
     #[napi]
     pub async fn send(&self, request: ArkRequest) -> Result<ArkResponse> {
+       
         let client= self.new_real_client()?;
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),

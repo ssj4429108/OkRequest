@@ -68,3 +68,6 @@
 
 ### 1.0.17 / 2025-4-1
 - 修复request body 跟 rust侧交互异常的问题
+
+### 1.0.18 / 2025-4-1
+- 修复response header不包含content-length导致异常的问题

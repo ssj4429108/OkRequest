@@ -55,11 +55,10 @@ struct Index {
         .onClick(async () => {
           // let resp = await this.client.get('http://www.baidu.com').send()
           try {
-            let resp = await this.client.post('http://test-api.axzo.cn/pudge/webApi/sms/v2/code').json({
-              phone: '18382295874',
-              phoneNumber: '18382295874',
-              systemVersion: "11",
-              type: 5
+            let resp = await this.client.post('http://test-api.axzo.cn/yoke/webApi/oss/signUrl/fetchUploadWhite').json({
+              bizScene: 'avatar',
+              appCode: "avatar",
+              fileName: '4ed8874f11bb4535918009c3268b2300.jpeg'
             }).send()
             console.log(resp?.text())
           } catch (e) {
