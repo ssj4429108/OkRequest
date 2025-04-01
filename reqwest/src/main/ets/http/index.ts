@@ -1,5 +1,6 @@
 import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
 import oh_request from 'libohos_reqwest.so'
+import { buffer } from "@kit.ArkTS";
 
 export class OkHttpClient {
   protected client: oh_request.ArkHttpClient | undefined;
@@ -87,18 +88,18 @@ export class OkHttpClient {
   }
 
   private async createRealRequest(request: Request): Promise<oh_request.ArkRequest> {
-    let bytes = await request.body?.bytes() || undefined
+    let body = await request.body?.bytes() || undefined
     let realRequest: oh_request.ArkRequest = {
       url: this.generateUrl(request.url),
       method: request.method,
       headers: request.headers,
-      body: bytes,
+      body: body ? buffer.from(body).buffer : undefined,
       dns: undefined
     }
     return realRequest
   }
 
-  async execute(request: Request): Promise<Response | undefined> {
+  async execute(request: Request, single?: any): Promise<Response | undefined> {
     this.checkLoadedSO()
 
     this.config.requestInterceptors.forEach((interceptor) => {
@@ -108,7 +109,7 @@ export class OkHttpClient {
     let realRequest = await this.createRealRequest(request)
     // this.requestCache.set(request.requestId, realRequest)
 
-    let result = await this.send(request, realRequest)
+    let result = await this.send(request, realRequest, single)
 
     this.config.responseInterceptors.forEach((interceptor) => {
       result = interceptor.intercept(result)

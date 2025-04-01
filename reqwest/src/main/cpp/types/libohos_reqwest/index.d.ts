@@ -7,8 +7,8 @@ export interface ArkRequest {
   url: string
   method: string
   headers?: Record<string, string>
-  body?: ArrayBuffer
   protocol?: string
+  body?: ArrayBuffer
   dns?: Record<string, Array<string>>
 }
 

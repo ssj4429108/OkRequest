@@ -62,3 +62,9 @@
 
 ### 1.0.15 / 2025-3-28
 - 底层使用rust reqwest 替换httpclient4cj
+
+### 1.0.16 / 2025-4-1
+- 新增abortController
+
+### 1.0.17 / 2025-4-1
+- 修复request body 跟 rust侧交互异常的问题

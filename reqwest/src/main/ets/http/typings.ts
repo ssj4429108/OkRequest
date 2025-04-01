@@ -464,6 +464,7 @@ export class RequestBuilder {
   mediaType?: string
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
   mCacheControl?: CacheControl
+  _single?: any
 
   constructor(client: OkHttpClient) {
     this.client = client
@@ -546,6 +547,11 @@ export class RequestBuilder {
     return this
   }
 
+  single(single: any): RequestBuilder {
+    this._single = single
+    return this
+  }
+
   cacheControl(cacheControl: CacheControl): RequestBuilder {
     this.mCacheControl = cacheControl
     return this
@@ -568,7 +574,7 @@ export class RequestBuilder {
 
   send(): Promise<Response | undefined> {
     let request = this.build()
-    return this.client.execute(request)
+    return this.client.execute(request, this._single)
   }
 }
 

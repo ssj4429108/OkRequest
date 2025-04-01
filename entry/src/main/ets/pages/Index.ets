@@ -53,13 +53,25 @@ struct Index {
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
-          let resp = await this.client.get('http://www.baidu.com').send()
-          console.log(resp?.text())
+          // let resp = await this.client.get('http://www.baidu.com').send()
+          try {
+            let resp = await this.client.post('http://test-api.axzo.cn/pudge/webApi/sms/v2/code').json({
+              phone: '18382295874',
+              phoneNumber: '18382295874',
+              systemVersion: "11",
+              type: 5
+            }).send()
+            console.log(resp?.text())
+          } catch (e) {
+            console.error(e)
+          }
         })
       Text('测试')
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
-        .onClick(() => {
+        .onClick(async () => {
+          let resp = await this.client.get('http://www.baidu.com').send()
+          console.log(resp?.text())
           // try {
           //   let resp = this.client.get('https://www.baidu.com').sendSync()
           //   console.log(resp?.text())

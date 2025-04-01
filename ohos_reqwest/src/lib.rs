@@ -5,15 +5,15 @@ use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use std::{collections::HashMap, time::Duration};
 
 #[napi(object)]
-#[derive(Clone)]
 pub struct ArkRequest {
     pub url: String,
     pub method: String,
     pub headers: Option<HashMap<String, String>>,
-    pub body: Option<Buffer>,
     pub protocol: Option<String>,
+    pub body: Option<Buffer>,
     pub dns: Option<HashMap<String, Vec<String>>>
 }
+
 
 #[napi(object)]
 #[derive(Clone)]
@@ -176,7 +176,6 @@ impl ArkHttpClient {
     
     #[napi]
     pub async fn send(&self, request: ArkRequest) -> Result<ArkResponse> {
-        
         let client= self.new_real_client()?;
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),
@@ -201,16 +200,19 @@ impl ArkHttpClient {
 
         if let Some(body) = request.body {
             let body = body.to_vec();
-            real_request = real_request.body(body);
+            real_request = real_request.body(reqwest::Body::from(body));
         }
         
         let resp = real_request
             .send()
             .await
-            .map_err(|e| Error::from_reason(e.to_string()))?;
-
-        let ark_resp = ArkResponse::new(resp).await?;
+            .map_err(|e| {
+                let err_str = format!("{:?}", e);
+                Error::from_reason(err_str)
+            })?;
         
+        let ark_resp = ArkResponse::new(resp).await?;
+    
         Ok(ark_resp)
     }
 }
