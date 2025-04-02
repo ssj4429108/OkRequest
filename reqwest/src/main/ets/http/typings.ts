@@ -1,11 +1,11 @@
 import util from '@ohos.util'
 import { OkHttpClient } from "."
-import { JSON } from "@kit.ArkTS"
+import { buffer, JSON } from "@kit.ArkTS"
 import { fileIo as fs, ReadOptions } from '@kit.CoreFileKit'
 import systemDateTime from "@ohos.systemDateTime"
 import { ByteArrayStream } from "../stream"
 import { socket } from "@kit.NetworkKit"
-import oh_request from 'libohos_reqwest.so'
+import oh_request, { CacheOption, toCurl } from 'libohos_reqwest.so'
 
 
 export interface RequestInterceptor {
@@ -44,32 +44,6 @@ export interface Dns {
   lookup: (domain: string) => Array<socket.NetAddress>
 }
 
-export interface CacheControl {
-  noCacheBuild?: boolean | false
-
-  noStoreBuild?: boolean | false
-
-  maxAgeSeconds?: number | -1
-
-  maxStaleSeconds?: number | -1
-
-  minFreshSeconds?: number | -1
-
-  onlyIfCachedBuild?: boolean | false
-
-  noTransformBuild?: boolean | false
-
-  immutableBuild?: boolean | false
-}
-
-export class ForceCache implements CacheControl {
-  onlyIfCachedBuild: true
-  maxStaleSeconds: 2_147_483_647
-}
-
-export class ForceNetwork implements CacheControl {
-  noCacheBuild: true
-}
 
 export interface OkConfig {
   requestInterceptors: RequestInterceptor[]
@@ -82,10 +56,12 @@ export interface OkConfig {
 
   tlsConfig: TlsConfig | undefined
 
+  enableCurlLog?: boolean
+
 }
 
 export class Request {
-  readonly url: string
+  url: string
   readonly method?: HttpMethod | undefined
   readonly headers?: Record<string,string>
   readonly mediaType?: string | undefined
@@ -97,7 +73,7 @@ export class Request {
 
   readonly dnsInfo: Array<socket.NetAddress> | undefined = undefined
 
-  readonly cacheControl?: CacheControl
+  readonly cacheOption?: CacheOption
 
   constructor(builder: RequestBuilder) {
     this.url = builder.url
@@ -108,7 +84,7 @@ export class Request {
     this.client = builder.client
     this.requestId = util.generateRandomUUID(true)
     this.dnsInfo = builder.dnsInfo
-    this.cacheControl = builder.mCacheControl
+    this.cacheOption = builder.cacheOption
   }
 
   newBuilder(): RequestBuilder {
@@ -120,6 +96,39 @@ export class Request {
     builder.body = this.body
     builder.dnsInfo = this.dnsInfo
     return builder
+  }
+
+  async toRealRequest(): Promise<oh_request.ArkRequest> {
+    let realBody = await this.body?.bytes() || undefined
+
+    let realRequest: oh_request.ArkRequest = {
+      url: this.url,
+      method: this.method,
+      headers: this.headers,
+      body: realBody ? buffer.from(realBody).buffer : undefined,
+      dns: undefined,
+      cacheOption: this.cacheOption
+    }
+    return realRequest
+  }
+
+  toRealRequestSync(): oh_request.ArkRequest {
+    let realBody = this.body?.bytesSync() || undefined
+    let realRequest: oh_request.ArkRequest = {
+      url: this.url,
+      method: this.method,
+      headers: this.headers,
+      body: realBody ? buffer.from(realBody).buffer : undefined,
+      dns: undefined,
+      cacheOption: this.cacheOption
+    }
+    return realRequest
+  }
+
+  toCurl(): string {
+    let realRequest = this.toRealRequestSync()
+    let curl = toCurl(realRequest)
+    return curl
   }
 }
 
@@ -463,7 +472,7 @@ export class RequestBuilder {
   body?: RequestBody
   mediaType?: string
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
-  mCacheControl?: CacheControl
+  cacheOption?: CacheOption
   _single?: any
 
   constructor(client: OkHttpClient) {
@@ -552,8 +561,8 @@ export class RequestBuilder {
     return this
   }
 
-  cacheControl(cacheControl: CacheControl): RequestBuilder {
-    this.mCacheControl = cacheControl
+  cacheControl(cacheOption: CacheOption): RequestBuilder {
+    this.cacheOption = cacheOption
     return this
   }
 

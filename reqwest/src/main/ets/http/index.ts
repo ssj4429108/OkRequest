@@ -24,7 +24,8 @@ export class OkHttpClient {
 
     let clientConfig: oh_request.Config = {
       timeout: config.timeout,
-      tls: tlsConfig
+      tls: tlsConfig,
+      enableCurlLog: config.enableCurlLog
     }
     this.client =
       new oh_request.ArkHttpClient(clientConfig)
@@ -87,17 +88,7 @@ export class OkHttpClient {
     return requestBuilder
   }
 
-  private async createRealRequest(request: Request): Promise<oh_request.ArkRequest> {
-    let body = await request.body?.bytes() || undefined
-    let realRequest: oh_request.ArkRequest = {
-      url: this.generateUrl(request.url),
-      method: request.method,
-      headers: request.headers,
-      body: body ? buffer.from(body).buffer : undefined,
-      dns: undefined
-    }
-    return realRequest
-  }
+
 
   async execute(request: Request, single?: any): Promise<Response | undefined> {
     this.checkLoadedSO()
@@ -105,8 +96,8 @@ export class OkHttpClient {
     this.config.requestInterceptors.forEach((interceptor) => {
       request = interceptor.intercept(request)
     })
-
-    let realRequest = await this.createRealRequest(request)
+    request.url = this.generateUrl(request.url)
+    let realRequest = await request.toRealRequest()
     // this.requestCache.set(request.requestId, realRequest)
 
     let result = await this.send(request, realRequest, single)

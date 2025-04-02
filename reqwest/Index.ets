@@ -16,5 +16,8 @@ export {
   TlsConfig,
   Protocol,
   Dns,
-  RequestBodyBuilder
+  RequestBodyBuilder,
+  RequestBuilder,
 } from './src/main/ets/http/typings'
+
+export { toCurl, CacheMode, CacheOption } from 'libohos_reqwest.so'

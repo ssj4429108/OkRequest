@@ -71,3 +71,11 @@
 
 ### 1.0.18 / 2025-4-1
 - 修复response header不包含content-length导致异常的问题
+
+### 1.0.19 / 2025-4-1
+- 暴露RequestBuilder
+
+### 1.0.20 / 2025-4-2
+- 新增Request.toCurl
+- HttpClient Config 新增enableCurlLog 开关
+- request 新增 cacheOption 配置

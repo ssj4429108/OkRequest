@@ -1,10 +1,5 @@
-import { OkConfig, OkHttpClient, Request, VerifyMode, Response, RequestBodyBuilder, HttpError } from '@axzo/ok-request';
-import { image } from '@kit.ImageKit';
-import { common } from '@kit.AbilityKit';
-import { LivenessDetection } from '../utils/Index'
-import { url, util, xml } from '@kit.ArkTS';
-import { FileUploadResp } from '../pojo';
-import utils from '@arkts.utils';
+import { OkConfig, OkHttpClient, Request, CacheMode } from '@axzo/ok-request';
+// import { toCurl, CacheMode } from '@axzo/ok-request/src/main/cpp/types/libohos_reqwest';
 
 const config: OkConfig = {
   requestInterceptors: [],
@@ -13,23 +8,17 @@ const config: OkConfig = {
   maxConnections: 5,
   baseUrl: undefined,
   protocols: undefined,
-  tlsConfig: undefined
-}
-
-class AxzHttpResponse<T> {
-  code: number = 0
-  message?: string = ""
-  data?: T | undefined
+  tlsConfig: undefined,
+  enableCurlLog: true
 }
 
 
-// config.requestInterceptors.push({
-//   intercept: (request: Request) => {
-//     return request.newBuilder()
-//       .head('1', '2')
-//       .build()
-//   }
-// })
+config.requestInterceptors.push({
+  intercept: (request: Request) => {
+    console.log(request.toCurl())
+    return request
+  }
+})
 //
 // config.responseInterceptors.push({
 //   intercept: (response: Response | undefined) => {
@@ -59,6 +48,8 @@ struct Index {
               bizScene: 'avatar',
               appCode: "avatar",
               fileName: '4ed8874f11bb4535918009c3268b2300.jpeg'
+            }).cacheControl({
+              cacheMode: CacheMode.Default
             }).send()
             console.log(resp?.text())
           } catch (e) {

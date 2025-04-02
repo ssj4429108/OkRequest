@@ -1,19 +1,72 @@
+use hilog_binding::hilog_debug;
 use napi_derive_ohos::napi;
 use napi_ohos::{bindgen_prelude::{BigInt, Buffer}, Error, Result};
 use reqwest::Version;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
 use std::{collections::HashMap, time::Duration};
+use http_cache_reqwest::{Cache, CacheMode as HttpCacheMode, CACacheManager, HttpCache, HttpCacheOptions};
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+use http::Extensions;
+
 
 #[napi(object)]
+#[derive(Clone)]
 pub struct ArkRequest {
     pub url: String,
     pub method: String,
     pub headers: Option<HashMap<String, String>>,
     pub protocol: Option<String>,
     pub body: Option<Buffer>,
-    pub dns: Option<HashMap<String, Vec<String>>>
+    pub dns: Option<HashMap<String, Vec<String>>>,
+    pub cache_option: Option<CacheOption>
 }
 
+#[napi]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum CacheMode {
+    /// Will inspect the HTTP cache on the way to the network.
+    /// If there is a fresh response it will be used.
+    /// If there is a stale response a conditional request will be created,
+    /// and a normal request otherwise.
+    /// It then updates the HTTP cache with the response.
+    /// If the revalidation request fails (for example, on a 500 or if you're offline),
+    /// the stale response will be returned.
+    #[default]
+    Default,
+    /// Behaves as if there is no HTTP cache at all.
+    NoStore,
+    /// Behaves as if there is no HTTP cache on the way to the network.
+    /// Ergo, it creates a normal request and updates the HTTP cache with the response.
+    Reload,
+    /// Creates a conditional request if there is a response in the HTTP cache
+    /// and a normal request otherwise. It then updates the HTTP cache with the response.
+    NoCache,
+    /// Uses any response in the HTTP cache matching the request,
+    /// not paying attention to staleness. If there was no response,
+    /// it creates a normal request and updates the HTTP cache with the response.
+    ForceCache,
+    /// Uses any response in the HTTP cache matching the request,
+    /// not paying attention to staleness. If there was no response,
+    /// it returns a network error.
+    OnlyIfCached,
+    /// Overrides the check that determines if a response can be cached to always return true on 200.
+    /// Uses any response in the HTTP cache matching the request,
+    /// not paying attention to staleness. If there was no response,
+    /// it creates a normal request and updates the HTTP cache with the response.
+    IgnoreRules,
+}
+
+#[napi(object)]
+#[derive(Clone)]
+pub struct CacheOption {
+    pub cache_mode: CacheMode
+}
+
+#[napi]
+pub fn to_curl(request: ArkRequest) -> Result<String> {
+    let curl = request.to_curl_command();
+    Ok(curl)
+}
 
 #[napi(object)]
 #[derive(Clone)]
@@ -32,6 +85,66 @@ pub struct ArkResponseBody {
     pub content_length: BigInt,
 }
 
+trait CurlCommand {
+    fn to_curl_command(&self) -> String;
+}
+
+impl CurlCommand for ArkRequest {
+    fn to_curl_command(&self) -> String {
+        let method = self.method.as_str();
+        let url = self.url.as_str();
+        let headers = self.headers.clone();
+        
+
+        // 构造 `curl` 命令
+        let mut curl_cmd = format!("curl -X {}", method);
+        curl_cmd.push_str(&format!(" '{}'", url));
+
+        // 添加 Headers
+        if let Some(headers) = headers {
+            for (key, value) in headers.iter() {
+                curl_cmd.push_str(&format!(" -H '{}: {}'", key, value));
+            }
+        }
+
+        // 添加 Body（如果存在）
+        if let Some(body) = &self.body {
+            let vec = body.to_vec();
+            let bytes = vec.as_slice();
+            let body_str = String::from_utf8_lossy(bytes);
+            curl_cmd.push_str(&format!(" -d '{}'", body_str));
+        }
+        curl_cmd
+    }
+}
+
+impl CurlCommand for reqwest::Request {
+    fn to_curl_command(&self) -> String {
+        let method = self.method().as_str();
+        let url = self.url().as_str();
+        let headers = self.headers();
+        let body = self.body();
+
+        // 构造 `curl` 命令
+        let mut curl_cmd = format!("curl -X {}", method);
+        curl_cmd.push_str(&format!(" '{}'", url));
+
+        // 添加 Headers
+        for (key, value) in headers.iter() {
+            curl_cmd.push_str(&format!(" -H '{}: {}'", key, value.to_str().unwrap_or("")));
+        }
+
+        // 添加 Body（如果存在）
+        if let Some(body) = body {
+            if let Some(bytes) = body.as_bytes() {
+                let body_str = String::from_utf8_lossy(bytes);
+                curl_cmd.push_str(&format!(" -d '{}'", body_str));
+            }
+        }
+        curl_cmd
+    }
+}
+
 impl ArkResponse {
     async fn new(resp: reqwest::Response) -> Result<ArkResponse> {
         
@@ -44,14 +157,6 @@ impl ArkResponse {
                 headers.insert(key.to_string(), val.to_string());
             }
         }
-        // let content_length = resp.content_length();
-        // // hilog_info!(format!("content-length:{:?}", content_length));
-        // // let body = if content_length.is_some() && content_length.unwrap() > 0 {
-        // //     let res = resp.bytes().await.map_err(|e| Error::from_reason(e.to_string()))?; // 避免 `unwrap()`
-            
-        // // } else {
-        // //     None
-        // // };
 
         let res = resp.bytes().await.map_err(|e| Error::from_reason(format!("{:?}", e)))?;
         let content_length: u64 = res.len().try_into().unwrap();
@@ -93,6 +198,7 @@ pub struct Config {
     pub ignore_ssl: Option<bool>,
     pub force_rustls_ssl: Option<bool>,
     pub no_proxy: Option<bool>,
+    pub enable_curl_log: Option<bool>
 }
 
 #[napi]
@@ -104,6 +210,7 @@ impl Default for Config {
             ignore_ssl: None,
             force_rustls_ssl: None,
             no_proxy: None,
+            enable_curl_log: None
         }
     }
 }
@@ -124,6 +231,29 @@ fn convert_protocol(protocol: &str) -> Result<Version> {
     }
 }
 
+
+pub struct CurlLoggerMiddleware;
+
+#[async_trait::async_trait]
+impl Middleware for CurlLoggerMiddleware {
+    async fn handle(
+        &self,
+        request: reqwest::Request,
+        extensions: &mut Extensions,
+        next: Next<'_>,
+    ) -> reqwest_middleware::Result<reqwest::Response> {
+
+
+        let curl_cmd = &request.to_curl_command();
+
+        hilog_debug!(format!("CURL Command: {}", curl_cmd));
+
+        // 继续执行请求
+        let res = next.run(request, extensions).await;
+        res
+    }
+}
+
 #[napi]
 impl ArkHttpClient {
     #[napi(constructor)]    
@@ -132,7 +262,7 @@ impl ArkHttpClient {
             config: config.unwrap_or_else(|| Config::default())
         }
     }
-    fn new_real_client(&self) -> Result<ClientWithMiddleware> {
+    fn new_real_client(&self, request: &ArkRequest) -> Result<ClientWithMiddleware> {
         let timeout = self.config.timeout;
         let mut reqwest_client_builder = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
@@ -170,10 +300,36 @@ impl ArkHttpClient {
         let reqwest_client = reqwest_client_builder
             .build()
             .map_err(|e| Error::from_reason(e.to_string()))?;
-        
-        //middleware
-        let builder = ClientBuilder::new(reqwest_client);
 
+        let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+
+        //middleware
+        let mut builder = ClientBuilder::new(reqwest_client)
+            .with(RetryTransientMiddleware::new_with_policy(retry_policy));
+            
+        if let Some(cache_option) = &request.cache_option {
+            // cache
+            let mode: HttpCacheMode = match cache_option.cache_mode {
+                CacheMode::Default => HttpCacheMode::Default,
+                CacheMode::NoStore => HttpCacheMode::NoStore,
+                CacheMode::Reload => HttpCacheMode::Reload,
+                CacheMode::NoCache => HttpCacheMode::NoCache,
+                CacheMode::ForceCache => HttpCacheMode::ForceCache,
+                CacheMode::OnlyIfCached => HttpCacheMode::OnlyIfCached,
+                CacheMode::IgnoreRules => HttpCacheMode::IgnoreRules,
+            };
+            builder = builder.with(Cache(HttpCache {
+                mode: mode,
+                manager: CACacheManager::default(),
+                options: HttpCacheOptions::default(),
+            }));
+        }
+        
+        //curl log
+        if self.config.enable_curl_log.unwrap_or(false) {
+            builder = builder.with(CurlLoggerMiddleware);
+        }
+        
         let client: ClientWithMiddleware = builder
             .build();
         Ok(client)
@@ -182,7 +338,7 @@ impl ArkHttpClient {
     #[napi]
     pub async fn send(&self, request: ArkRequest) -> Result<ArkResponse> {
        
-        let client= self.new_real_client()?;
+        let client= self.new_real_client(&request)?;
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),
             "POST" => client.post(request.url),
@@ -218,7 +374,6 @@ impl ArkHttpClient {
             })?;
         
         let ark_resp = ArkResponse::new(resp).await?;
-    
         Ok(ark_resp)
     }
 }
