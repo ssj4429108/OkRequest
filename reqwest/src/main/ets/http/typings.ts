@@ -38,6 +38,7 @@ export interface Cert {
 export interface TlsConfig {
   caCert?: Array<Cert>
   clientCert?: string
+  ignoreSsl?: boolean
 }
 
 export interface Dns {
@@ -733,7 +734,7 @@ export class ResponseBody {
     return decoder.decodeToString(new Uint8Array(bytes))
   }
 
-  json<T>(): T | undefined {
+  json<T>(cls?: new (...args: any[]) => T): T | undefined {
     if (!this.bodyAvailable()) {
       return undefined
     }
@@ -741,7 +742,13 @@ export class ResponseBody {
     if (!text) {
       return undefined
     }
-    return JSON.parse(text) as T
+    let obj = JSON.parse(text) as T
+    if (cls) {
+      let instance = new cls()
+      Object.assign(instance, obj)
+      return instance
+    }
+    return obj
   }
 
   bytes(): ArrayBuffer | undefined {
@@ -768,3 +775,4 @@ export class HttpError extends Error {
     this.request = request
   }
 }
+

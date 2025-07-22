@@ -79,3 +79,10 @@
 - 新增Request.toCurl
 - HttpClient Config 新增enableCurlLog 开关
 - request 新增 cacheOption 配置
+
+### 1.0.21 / 2025-4-8
+- ResponseBody json 方法新增cls类型可选参数
+
+### 1.0.22 / 2025-7-22
+- 修复ByteArrayStream全量读取position未重置的问题
+- 新增忽略ssl校验配置到tlsConfig

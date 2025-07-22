@@ -25,7 +25,8 @@ export class OkHttpClient {
     let clientConfig: oh_request.Config = {
       timeout: config.timeout,
       tls: tlsConfig,
-      enableCurlLog: config.enableCurlLog
+      enableCurlLog: config.enableCurlLog,
+      ignoreSsl: config.tlsConfig?.ignoreSsl ?? false
     }
     this.client =
       new oh_request.ArkHttpClient(clientConfig)

@@ -37,6 +37,7 @@ export class ByteArrayStream {
 
   // 读取多个字节
   readBytes(length: number): Uint8Array {
+    this.setPosition(0);
     const end = Math.min(this.position + length, this.buffer.length);
     const result = this.buffer.slice(this.position, end);
     this.position = end;
