@@ -2,6 +2,7 @@ use hilog_binding::hilog_debug;
 use napi_derive_ohos::napi;
 use napi_ohos::{bindgen_prelude::{BigInt, Buffer}, Error, Result};
 use reqwest::Version;
+use reqwest_eventsource::EventSource;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
 use std::{collections::HashMap, time::Duration};
 use http_cache_reqwest::{Cache, CacheMode as HttpCacheMode, CACacheManager, HttpCache, HttpCacheOptions};
@@ -334,7 +335,59 @@ impl ArkHttpClient {
             .build();
         Ok(client)
     }
-    
+
+    fn make_request_builder(&self, request: &ArkRequest) -> Result<reqwest::RequestBuilder> { 
+        let mut real_request = match request.method.to_uppercase().as_str() {
+            "GET" => reqwest::Client::new().get(request.url),
+            "POST" => reqwest::Client::new().post(request.url),
+            "PUT" => reqwest::Client::new().put(request.url),
+            "DELETE" => reqwest::Client::new().delete(request.url),
+            "PATCH" => reqwest::Client::new().patch(request.url),
+        };
+        Ok(real_request);
+    }
+
+    pub async fn sse(&self, request: ArkRequest) -> Result<()> {
+        let client= self.new_real_client(&request)?;
+        let mut real_request = match request.method.to_uppercase().as_str() {
+            "GET" => client.get(request.url),
+            "POST" => client.post(request.url),
+            "PUT" => client.put(request.url),
+            "DELETE" => client.delete(request.url),
+            "PATCH" => client.patch(request.url),
+            "HEAD" => client.head(request.url),
+            _ => return Err(Error::from_reason("Unsupported method".to_string())),
+        };
+
+        if let Some(headers) = request.headers {
+            for (key, value) in headers.iter() {
+                real_request = real_request.header(key, value);
+            }
+        }
+
+        if let Some(protocol) = request.protocol {
+            let version = convert_protocol(&protocol).unwrap_or(Version::HTTP_11);
+            real_request = real_request.version(version);
+        }
+
+        if let Some(body) = request.body {
+            let body = body.to_vec();
+            real_request = real_request.body(reqwest::Body::from(body));
+        }
+        let mut se= EventSource::new(real_request);
+        while let Some(event) = se.iter().next().await {
+            match event {
+                Ok(Event::Open) => println!("Connection Open!"),
+                Ok(Event::Message(message)) => println!("Message: {:#?}", message.data),
+                Err(err) => {
+                    se.close();
+                    return Err(Error::from_reason(format!("Connection closed: {}".to_string(), err)));
+                }
+            }
+        }
+        Ok(())
+    }
+
     #[napi]
     pub async fn send(&self, request: ArkRequest) -> Result<ArkResponse> {
        
