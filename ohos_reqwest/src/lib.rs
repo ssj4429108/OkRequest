@@ -1,6 +1,6 @@
 use hilog_binding::hilog_debug;
 use napi_derive_ohos::napi;
-use napi_ohos::{bindgen_prelude::{BigInt, Buffer}, Error, Result};
+use napi_ohos::{Error, JsString, Result, bindgen_prelude::{BigInt, Buffer}, threadsafe_function::ThreadsafeFunction};
 use reqwest::Version;
 use reqwest_eventsource::EventSource;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
@@ -347,7 +347,8 @@ impl ArkHttpClient {
         Ok(real_request);
     }
 
-    pub async fn sse(&self, request: ArkRequest) -> Result<()> {
+    #[napi]
+    pub async fn sse(&self, request: ArkRequest, cb: ThreadsafeFunction<JsString,()>) -> Result<()> {
         let client= self.new_real_client(&request)?;
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),
@@ -377,8 +378,8 @@ impl ArkHttpClient {
         let mut se= EventSource::new(real_request);
         while let Some(event) = se.iter().next().await {
             match event {
-                Ok(Event::Open) => println!("Connection Open!"),
-                Ok(Event::Message(message)) => println!("Message: {:#?}", message.data),
+                Ok(Event::Open) => println!("Open event"),
+                Ok(Event::Message(message)) => cb.call(Ok(message.data), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking),
                 Err(err) => {
                     se.close();
                     return Err(Error::from_reason(format!("Connection closed: {}".to_string(), err)));
