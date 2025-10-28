@@ -50,6 +50,9 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
           let resp = await this.client.get('http://www.baidu.com').send()
+          await this.client.get("112321").see(callback => {
+
+          })
         })
     }
     .height('100%')

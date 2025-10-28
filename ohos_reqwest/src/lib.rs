@@ -1,14 +1,15 @@
+use futures_core::Stream;
 use hilog_binding::hilog_debug;
 use napi_derive_ohos::napi;
 use napi_ohos::{Error, JsString, Result, bindgen_prelude::{BigInt, Buffer}, threadsafe_function::ThreadsafeFunction};
-use reqwest::Version;
-use reqwest_eventsource::EventSource;
+use reqwest::{Client, Version};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
 use std::{collections::HashMap, time::Duration};
 use http_cache_reqwest::{Cache, CacheMode as HttpCacheMode, CACacheManager, HttpCache, HttpCacheOptions};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use http::Extensions;
-
+use futures::stream::StreamExt;
+use reqwest_eventsource::{Event, EventSource};
 
 #[napi(object)]
 #[derive(Clone)]
@@ -263,6 +264,47 @@ impl ArkHttpClient {
             config: config.unwrap_or_else(|| Config::default())
         }
     }
+
+    fn new_real_origin_client(&self) -> Result<Client> {
+        let timeout = self.config.timeout;
+        let mut reqwest_client_builder = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
+            .read_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
+            .danger_accept_invalid_certs(self.config.ignore_ssl.unwrap_or(false));
+
+        if self.config.tls.is_some() {
+            let default_cert = vec![];
+            for cert in self.config.tls.as_ref().unwrap().ca_cert.as_ref().unwrap_or(&default_cert).iter() {
+                if cert.ty.to_lowercase() ==  "pem" {
+                    if let Ok(cert) = reqwest::Certificate::from_pem(cert.cert.as_bytes()) {
+                        reqwest_client_builder = reqwest_client_builder.add_root_certificate(cert);
+                    }
+                } else if cert.ty.to_lowercase() == "der" {
+                    if let Ok(cert) = reqwest::Certificate::from_der(cert.cert.as_bytes()) {
+                        reqwest_client_builder = reqwest_client_builder.add_root_certificate(cert);
+                    }
+                }
+            }
+            //client identity
+            if self.config.tls.as_ref().unwrap().client_cert.is_some() {
+                let cert = self.config.tls.as_ref().unwrap().client_cert.as_ref().unwrap();
+                if let Ok(cert) = reqwest::Identity::from_pem(cert.as_bytes()) {
+                    reqwest_client_builder = reqwest_client_builder.identity(cert);
+                }
+            }
+        }
+        if self.config.force_rustls_ssl.unwrap_or(false) {
+            reqwest_client_builder = reqwest_client_builder.use_rustls_tls();
+        }
+        if self.config.no_proxy.unwrap_or(false) {
+            reqwest_client_builder = reqwest_client_builder.no_proxy();
+        }
+        // reqwest_client_builder.
+        let reqwest_client = reqwest_client_builder
+            .build()
+            .map_err(|e| Error::from_reason(e.to_string()))?;
+        Ok(reqwest_client)
+    }
     fn new_real_client(&self, request: &ArkRequest) -> Result<ClientWithMiddleware> {
         let timeout = self.config.timeout;
         let mut reqwest_client_builder = reqwest::Client::builder()
@@ -336,20 +378,9 @@ impl ArkHttpClient {
         Ok(client)
     }
 
-    fn make_request_builder(&self, request: &ArkRequest) -> Result<reqwest::RequestBuilder> { 
-        let mut real_request = match request.method.to_uppercase().as_str() {
-            "GET" => reqwest::Client::new().get(request.url),
-            "POST" => reqwest::Client::new().post(request.url),
-            "PUT" => reqwest::Client::new().put(request.url),
-            "DELETE" => reqwest::Client::new().delete(request.url),
-            "PATCH" => reqwest::Client::new().patch(request.url),
-        };
-        Ok(real_request);
-    }
-
     #[napi]
     pub async fn sse(&self, request: ArkRequest, cb: ThreadsafeFunction<JsString,()>) -> Result<()> {
-        let client= self.new_real_client(&request)?;
+        let client= self.new_real_origin_client()?;
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),
             "POST" => client.post(request.url),
@@ -375,14 +406,17 @@ impl ArkHttpClient {
             let body = body.to_vec();
             real_request = real_request.body(reqwest::Body::from(body));
         }
-        let mut se= EventSource::new(real_request);
-        while let Some(event) = se.iter().next().await {
+        let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
+        
+        while let Some(event) = es.next().await {
             match event {
-                Ok(Event::Open) => println!("Open event"),
-                Ok(Event::Message(message)) => cb.call(Ok(message.data), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking),
+                Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
+                Ok(reqwest_eventsource::Event::Message(message)) => cb.call(Ok(message.data), ThreadsafeFunctionCallMode::NonBlocking),
                 Err(err) => {
-                    se.close();
-                    return Err(Error::from_reason(format!("Connection closed: {}".to_string(), err)));
+                    println!("Error: {}", err);
+                    es.close();
+                    cb.call(Err(Error::from_reason(err.to_string())), ThreadsafeFunctionCallMode::NonBlocking);
+                    Err(Error::from_reason(err.to_string()))
                 }
             }
         }
