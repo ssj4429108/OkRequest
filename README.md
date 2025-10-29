@@ -172,6 +172,19 @@ await this.client.get('https://api.example.com/events')
 
 ### 异常处理
 
+### SSE
+```typescript
+    await this.client.get('https://api.example.com/events')
+  .sse(
+    (msg: string) => {
+      console.info('收到 SSE 消息:', msg);
+    },
+    (err: Error) => {
+      console.error('SSE 错误:', err);
+    }
+  );
+```
+
 ```typescript
 try {
   await this.client.get('https://baidu.com').send()

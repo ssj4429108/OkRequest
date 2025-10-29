@@ -140,6 +140,19 @@ let multipart = new MultiPartBodyBuilder()
 let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
 ```
 
+### SSE
+```typescript
+    await this.client.get('https://api.example.com/events')
+  .sse(
+    (msg: string) => {
+      console.info('收到 SSE 消息:', msg);
+    },
+    (err: Error) => {
+      console.error('SSE 错误:', err);
+    }
+  );
+```
+
 ### 异常处理
 
 ```typescript

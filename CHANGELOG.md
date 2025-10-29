@@ -86,3 +86,6 @@
 ### 1.0.22 / 2025-7-22
 - 修复ByteArrayStream全量读取position未重置的问题
 - 新增忽略ssl校验配置到tlsConfig
+
+### 1.0.23 / 2025-10-29
+- 新增SSE模式

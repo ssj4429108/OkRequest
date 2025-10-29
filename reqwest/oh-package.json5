@@ -1,6 +1,6 @@
 {
   "name": "@axzo/ok-request",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "Request 是一个基于 Rust reqwest 的高效率 ArkTs HTTP 客户端",
   "main": "Index.ets",
   "author": "skipper",
@@ -12,7 +12,8 @@
     "HarmonyOS",
     "request",
     "http",
-    "reqwest"
+    "reqwest",
+    "sse"
   ],
   "tags": [
     "Network"
