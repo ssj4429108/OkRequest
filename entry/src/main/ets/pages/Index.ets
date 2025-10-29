@@ -49,10 +49,20 @@ struct Index {
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
-          let resp = await this.client.get('http://www.baidu.com').send()
-          await this.client.get("112321").see(callback => {
+          // let resp = await this.client.get('http://www.baidu.com').send()
+          // await this.client.get("112321").send()
 
-          })
+          // 简单用法
+          await this.client.get('https://api.example.com/events')
+            .sse(
+              (msg: string) => {
+                console.info('收到 SSE 消息:', msg);
+              },
+              (err: Error) => {
+                console.error('SSE 错误:', err);
+              }
+            );
+
         })
     }
     .height('100%')

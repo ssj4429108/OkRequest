@@ -90,7 +90,6 @@ export class OkHttpClient {
   }
 
 
-
   async execute(request: Request, single?: any): Promise<Response | undefined> {
     this.checkLoadedSO()
 
@@ -109,7 +108,57 @@ export class OkHttpClient {
     return result
   }
 
-  protected async send(request: Request, realRequest: oh_request.ArkRequest, signal?: any): Promise<Response | undefined> {
+  async sse(request: Request, onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
+    this.checkLoadedSO()
+
+    this.config.requestInterceptors.forEach((interceptor) => {
+      request = interceptor.intercept(request)
+    })
+    request.url = this.generateUrl(request.url)
+    let realRequest = await request.toRealRequest()
+
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.client.sse(realRequest, (err: Error | null, arg: string) => {
+          if (err) {
+            if (onError) {
+              try {
+                onError(err)
+              } catch (e) { /* ignore */
+              }
+            }
+            reject(err)
+          } else {
+            try {
+              onMessage(arg)
+            } catch (e) {
+            }
+          }
+        }).then(() => {
+          resolve()
+        }).catch((e: any) => {
+          if (onError) {
+            try {
+              onError(e)
+            } catch (ee) {
+            }
+          }
+          reject(e)
+        })
+      } catch (e) {
+        if (onError) {
+          try {
+            onError(e)
+          } catch (ee) {
+          }
+        }
+        reject(e)
+      }
+    })
+  }
+
+  protected async send(request: Request, realRequest: oh_request.ArkRequest,
+    signal?: any): Promise<Response | undefined> {
     let result: oh_request.ArkResponse | undefined
     if (signal) {
       signal.addEventListener(('abort'), () => {

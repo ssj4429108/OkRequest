@@ -52,11 +52,8 @@ export interface OkConfig {
   timeout: number
   maxConnections: number
   baseUrl: string | undefined
-
   protocols: Array<Protocol> | undefined
-
   tlsConfig: TlsConfig | undefined
-
   enableCurlLog?: boolean
 
 }
@@ -64,7 +61,7 @@ export interface OkConfig {
 export class Request {
   url: string
   readonly method?: HttpMethod | undefined
-  readonly headers?: Record<string,string>
+  readonly headers?: Record<string, string>
   readonly mediaType?: string | undefined
   readonly body?: RequestBody | undefined
 
@@ -152,6 +149,7 @@ export class RequestBodyBuilder {
     this.data = data
     this.contentType = contentType
   }
+
   build(): RequestBody {
     return {
       contentType: () => this.contentType,
@@ -585,6 +583,17 @@ export class RequestBuilder {
   send(): Promise<Response | undefined> {
     let request = this.build()
     return this.client.execute(request, this._single)
+  }
+
+  /**
+   * 开始 Server-Sent Events (SSE) 连接。
+   * @param onMessage 接收每条事件的回调函数。
+   * @param onError 可选的错误处理回调。
+   * @returns Promise，在连接正常结束时 resolve，发生错误时 reject。
+   */
+  sse(onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
+    let request = this.build()
+    return this.client.sse(request, onMessage, onError)
   }
 }
 
