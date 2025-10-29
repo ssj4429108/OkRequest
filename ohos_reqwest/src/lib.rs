@@ -4,12 +4,14 @@ use napi_derive_ohos::napi;
 use napi_ohos::{Error, JsString, Result, bindgen_prelude::{BigInt, Buffer}, threadsafe_function::ThreadsafeFunction};
 use reqwest::{Client, Version};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, fmt::format, time::Duration};
 use http_cache_reqwest::{Cache, CacheMode as HttpCacheMode, CACacheManager, HttpCache, HttpCacheOptions};
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use http::Extensions;
 use futures::stream::StreamExt;
 use reqwest_eventsource::{Event, EventSource};
+use std::thread;
+
 
 #[napi(object)]
 #[derive(Clone)]
@@ -379,8 +381,9 @@ impl ArkHttpClient {
     }
 
     #[napi]
-    pub async fn sse(&self, request: ArkRequest, cb: ThreadsafeFunction<JsString,()>) -> Result<()> {
+    pub async fn sse(&self, request: ArkRequest, cb: ThreadsafeFunction<String,()>) -> Result<()> {
         let client= self.new_real_origin_client()?;
+        
         let mut real_request = match request.method.to_uppercase().as_str() {
             "GET" => client.get(request.url),
             "POST" => client.post(request.url),
@@ -407,16 +410,21 @@ impl ArkHttpClient {
             real_request = real_request.body(reqwest::Body::from(body));
         }
         let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
-        
+    
         while let Some(event) = es.next().await {
             match event {
                 Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
-                Ok(reqwest_eventsource::Event::Message(message)) => cb.call(Ok(message.data), ThreadsafeFunctionCallMode::NonBlocking),
+                // Ok(reqwest_eventsource::Event::Message(message)) =>  cb.call(Ok(format!("{}", message.data)), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking),
+                Ok(reqwest_eventsource::Event::Message(message)) => {
+                    cb.call(Ok(format!("{}", message.data)), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking);
+                    
+                },
                 Err(err) => {
                     println!("Error: {}", err);
                     es.close();
-                    cb.call(Err(Error::from_reason(err.to_string())), ThreadsafeFunctionCallMode::NonBlocking);
-                    Err(Error::from_reason(err.to_string()))
+                    cb.call(Err(Error::from_reason(format!("{}", err))), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking);
+                    
+                    return Err(Error::from_reason(format!("{}", err)));
                 }
             }
         }
