@@ -5,11 +5,11 @@ use http_cache_reqwest::{
     CACacheManager, Cache, CacheMode as HttpCacheMode, HttpCache, HttpCacheOptions,
 };
 use napi_derive_ohos::napi;
+use napi_ohos::threadsafe_function::ThreadsafeFunction;
 use napi_ohos::{
     bindgen_prelude::{BigInt, Buffer},
     Error, Result,
 };
-use napi_ohos::threadsafe_function::ThreadsafeFunction;
 
 use reqwest::{Client, Version};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
@@ -264,8 +264,6 @@ impl Middleware for CurlLoggerMiddleware {
     }
 }
 
-
-
 #[napi]
 impl ArkHttpClient {
     #[napi(constructor)]
@@ -426,22 +424,14 @@ impl ArkHttpClient {
         let client: ClientWithMiddleware = builder.build();
         Ok(client)
     }
-    
 
     #[napi]
-    pub async fn send(&self, request: ArkRequest, cb: Option<ThreadsafeFunction<String, ()>>) -> Result<ArkResponse> {
+    pub async fn send(
+        &self,
+        request: ArkRequest,
+        cb: Option<ThreadsafeFunction<String, ()>>,
+    ) -> Result<ArkResponse> {
         if request.is_eventsource.unwrap_or(false) {
-            let client = self.new_real_client(&request)?;
-            let real_request = self.build_request_for_middleware(client, &request)?;
-
-            let resp = real_request.send().await.map_err(|e| {
-                let err_str = format!("{:?}", e);
-                Error::from_reason(err_str)
-            })?;
-
-            let ark_resp = ArkResponse::new(resp).await?;
-            Ok(ark_resp)
-        } else {
             match cb {
                 Some(cb) => {
                     let client = self.new_real_origin_client()?;
@@ -479,10 +469,21 @@ impl ArkHttpClient {
                 }
                 None => {
                     return Err(Error::from_reason(
-                        "Callback function is required for EventSource".to_string()
+                        "Callback function is required for EventSource".to_string(),
                     ));
                 }
             }
+        } else {
+            let client = self.new_real_client(&request)?;
+            let real_request = self.build_request_for_middleware(client, &request)?;
+
+            let resp = real_request.send().await.map_err(|e| {
+                let err_str = format!("{:?}", e);
+                Error::from_reason(err_str)
+            })?;
+
+            let ark_resp = ArkResponse::new(resp).await?;
+            Ok(ark_resp)
         }
     }
 
