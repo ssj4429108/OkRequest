@@ -1,4 +1,4 @@
-import { HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
+import { EventSourceCallback, HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
 import oh_request from 'libohos_reqwest.so'
 import { buffer } from "@kit.ArkTS";
 
@@ -82,9 +82,9 @@ export class OkHttpClient {
     return requestBuilder
   }
 
-  toEventSource(onMessage : (msg: string) => void, onError?: (err: any) => void){
+  toEventSource() {
     let requestBuilder = new RequestBuilder(this)
-    requestBuilder.
+    requestBuilder.isEventsource = true
   }
 
   head(url: string): RequestBuilder {
@@ -95,7 +95,7 @@ export class OkHttpClient {
   }
 
 
-  async execute(request: Request, signal?: any): Promise<Response | undefined> {
+  async execute(request: Request): Promise<Response | undefined> {
     this.checkLoadedSO()
 
     this.config.requestInterceptors.forEach((interceptor) => {
@@ -103,11 +103,11 @@ export class OkHttpClient {
     })
     request.url = this.generateUrl(request.url)
 
-    let realRequest = await request.toRealRequest(callback)
+    let realRequest = await request.toRealRequest()
 
     // this.requestCache.set(request.requestId, realRequest)
 
-    let result = await this.send(request, realRequest, signal)
+    let result = await this.send(request, realRequest)
 
     this.config.responseInterceptors.forEach((interceptor) => {
       result = interceptor.intercept(result)
@@ -115,75 +115,44 @@ export class OkHttpClient {
     return result
   }
 
-  async sse(request: Request, onMessage: (msg: string) => void, onError?: (err: any) => void,
-    signal?: any): Promise<void> {
-    var isCancel = false
-    this.checkLoadedSO()
-    if (signal) {
-      signal.addEventListener(('abort'), () => {
-        isCancel = true
-        throw Error('request aborted by signal.')
-      })
-    }
-    this.config.requestInterceptors.forEach((interceptor) => {
-      request = interceptor.intercept(request)
-    })
-    request.url = this.generateUrl(request.url)
-    let realRequest = await request.toRealRequest()
+  protected async send(request: Request, realRequest: oh_request.ArkRequest): Promise<Response | undefined> {
+    let result: oh_request.ArkResponse | undefined
+    let signal = request.signal
+    console.log('send request: ------------- ', realRequest.isEventsource)
+    if (request.isEventsource) {
+      var isCancel = false
 
-    return new Promise<void>((resolve, reject) => {
-      try {
-        this.client.sse(realRequest, (err: Error | null, arg: string) => {
-          if (err) {
-            if (onError) {
-              try {
-                if (!isCancel) {
-                  onError(err)
-                }
-              } catch (e) {
-              }
-            }
-            reject(err)
-          } else {
-            try {
-              if (!isCancel) {
-                onMessage(arg)
-              }
-            } catch (e) {
-            }
-          }
-        }).then(() => {
-          resolve()
-        }).catch((e: any) => {
-          if (onError && !isCancel) {
-            try {
-              onError(e)
-            } catch (ee) {
-            }
-          }
-          reject(e)
+      if (signal) {
+        signal.addEventListener(('abort'), () => {
+          isCancel = true
+          throw Error('request aborted by signal.')
         })
-      } catch (e) {
-        if (onError && !isCancel) {
-          try {
-            onError(e)
-          } catch (ee) {
+      }
+      result = await this.client?.send(realRequest, (err: Error | null, msg: string) => {
+        console.log('send request: ------------- ', msg)
+        if (err) {
+          if (request.eventSourceCallback?.onError && !isCancel) {
+            request.eventSourceCallback?.onError(err)
+          }
+        } else {
+          if (!isCancel) {
+            request.eventSourceCallback?.onMessage(msg)
           }
         }
-        reject(e)
+      })
+    } else {
+      if (signal) {
+        signal.addEventListener(('abort'), () => {
+          throw Error('request aborted by signal.')
+        })
       }
-    })
-  }
-
-  protected async send(request: Request, realRequest: oh_request.ArkRequest,
-    signal?: any): Promise<Response | undefined> {
-    let result: oh_request.ArkResponse | undefined
-
-    try {
-      result = await this.client.send(realRequest)
-    } catch (e) {
-      throw e
+      try {
+        result = await this.client.send(realRequest)
+      } catch (e) {
+        throw e
+      }
     }
+
     if (!result) {
       return undefined
     }

@@ -59,34 +59,42 @@ struct Index {
             `https://test-api.axzo.cn/ai-assistant/webApi/ai/assistant/bot/chatStream?question=${encodedQuestion}&showReason=${false}`
 
           // 使用自定义的 AbortController
-          const request = this.client.get(api)
+           this.client.get(api)
             .head({
-              "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiWU51VjZzSllrMGlCR2N1OThqMFV3TnEyT29Da205eFQifQ.Eao8LutZkgLOatPj0kxKMmOz1qk956tIq6lDK4mQpPA"
+              "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiVjlIeHhOMVpkRkNFTlBZU3lXYU04SXk3MTR4Wko2c1AifQ.Ow8qUgvwKd6PKUteD-UeDKvCTl8ycG6AcmsqoNOWEx0"
             })
             .signal(this.controller)
-            .toEventSource(() => {}, () => {});
-
-          await request.send()
-          // 执行 SSE 连接
-          await request.sse(
-            (msg: string) => {
-              console.info('收到 SSE 消息:', msg);
-            },
-            (err: Error) => {
-              // 区分是用户主动取消还是其他错误
-              if (err.message === 'request aborted by signal.') {
-                console.info('请求已被用户取消');
-              } else {
-                console.error('SSE 错误:', err);
+            .toEventSource({
+              onMessage(event: string) {
+                console.log(event)
+              },
+              onError(error: string) {
+                console.log(error)
               }
-            }
-          );
+            })
+            .send()
+
+          // await request.send()
+          // // 执行 SSE 连接
+          // await request.sse(
+          //   (msg: string) => {
+          //     console.info('收到 SSE 消息:', msg);
+          //   },
+          //   (err: Error) => {
+          //     // 区分是用户主动取消还是其他错误
+          //     if (err.message === 'request aborted by signal.') {
+          //       console.info('请求已被用户取消');
+          //     } else {
+          //       console.error('SSE 错误:', err);
+          //     }
+          //   }
+          // );
         })
 
       // 添加取消按钮
       Button('取消请求')
         .onClick(() => {
-          this.abortController.abort();
+          this.controller.abort()
         })
     }
     .height('100%')

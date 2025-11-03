@@ -11,6 +11,7 @@ export interface ArkRequest {
   body?: ArrayBuffer
   dns?: Record<string, Array<string>>
   cacheOption?: CacheOption
+  isEventsource?: boolean
 }
 
 export interface ArkResponse {
@@ -28,45 +29,45 @@ export interface ArkResponseBody {
 
 export declare const enum CacheMode {
   /**
-   * Will inspect the HTTP cache on the way to the network.
-   * If there is a fresh response it will be used.
-   * If there is a stale response a conditional request will be created,
-   * and a normal request otherwise.
-   * It then updates the HTTP cache with the response.
-   * If the revalidation request fails (for example, on a 500 or if you're offline),
-   * the stale response will be returned.
-   */
+    * Will inspect the HTTP cache on the way to the network.
+    * If there is a fresh response it will be used.
+    * If there is a stale response a conditional request will be created,
+    * and a normal request otherwise.
+    * It then updates the HTTP cache with the response.
+    * If the revalidation request fails (for example, on a 500 or if you're offline),
+    * the stale response will be returned.
+    */
   Default = 0,
   /** Behaves as if there is no HTTP cache at all. */
   NoStore = 1,
   /**
-   * Behaves as if there is no HTTP cache on the way to the network.
-   * Ergo, it creates a normal request and updates the HTTP cache with the response.
-   */
+    * Behaves as if there is no HTTP cache on the way to the network.
+    * Ergo, it creates a normal request and updates the HTTP cache with the response.
+    */
   Reload = 2,
   /**
-   * Creates a conditional request if there is a response in the HTTP cache
-   * and a normal request otherwise. It then updates the HTTP cache with the response.
-   */
+    * Creates a conditional request if there is a response in the HTTP cache
+    * and a normal request otherwise. It then updates the HTTP cache with the response.
+    */
   NoCache = 3,
   /**
-   * Uses any response in the HTTP cache matching the request,
-   * not paying attention to staleness. If there was no response,
-   * it creates a normal request and updates the HTTP cache with the response.
-   */
+    * Uses any response in the HTTP cache matching the request,
+    * not paying attention to staleness. If there was no response,
+    * it creates a normal request and updates the HTTP cache with the response.
+    */
   ForceCache = 4,
   /**
-   * Uses any response in the HTTP cache matching the request,
-   * not paying attention to staleness. If there was no response,
-   * it returns a network error.
-   */
+    * Uses any response in the HTTP cache matching the request,
+    * not paying attention to staleness. If there was no response,
+    * it returns a network error.
+    */
   OnlyIfCached = 5,
   /**
-   * Overrides the check that determines if a response can be cached to always return true on 200.
-   * Uses any response in the HTTP cache matching the request,
-   * not paying attention to staleness. If there was no response,
-   * it creates a normal request and updates the HTTP cache with the response.
-   */
+    * Overrides the check that determines if a response can be cached to always return true on 200.
+    * Uses any response in the HTTP cache matching the request,
+    * not paying attention to staleness. If there was no response,
+    * it creates a normal request and updates the HTTP cache with the response.
+    */
   IgnoreRules = 6
 }
 
@@ -97,11 +98,7 @@ export declare function toCurl(request: ArkRequest): string
 
 export declare class ArkHttpClient {
   config: Config
-
   constructor(config?: Config | undefined | null)
-
-  sse(request: ArkRequest, cb: ((err: Error | null, arg: string) => void)): Promise<void>
-
-  send(request: ArkRequest): Promise<ArkResponse>
+  send(request: ArkRequest, cb?: ((err: Error | null, arg: string) => void) | undefined | null): Promise<ArkResponse>
 }
 

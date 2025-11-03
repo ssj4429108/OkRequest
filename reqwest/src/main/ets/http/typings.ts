@@ -73,6 +73,11 @@ export class Request {
 
   readonly cacheOption?: CacheOption
 
+  readonly isEventsource?: boolean
+  readonly eventSourceCallback?: EventSourceCallback
+
+  readonly signal?: any
+
   constructor(builder: RequestBuilder) {
     this.url = builder.url
     this.method = builder.method
@@ -83,7 +88,11 @@ export class Request {
     this.requestId = util.generateRandomUUID(true)
     this.dnsInfo = builder.dnsInfo
     this.cacheOption = builder.cacheOption
+    this.isEventsource = builder.isEventsource
+    this.eventSourceCallback = builder.eventSourceCallback
+    this.signal = builder._signal
   }
+
 
   newBuilder(): RequestBuilder {
     let builder = new RequestBuilder(this.client)
@@ -93,10 +102,14 @@ export class Request {
     builder.mediaType = this.mediaType
     builder.body = this.body
     builder.dnsInfo = this.dnsInfo
+    builder.cacheOption = this.cacheOption
+    builder.isEventsource = this.isEventsource
+    builder.eventSourceCallback = this.eventSourceCallback
+    builder._signal = this.signal
     return builder
   }
 
-  async toRealRequest(callback): Promise<oh_request.ArkRequest> {
+  async toRealRequest(): Promise<oh_request.ArkRequest> {
     let realBody = await this.body?.bytes() || undefined
 
     let realRequest: oh_request.ArkRequest = {
@@ -105,12 +118,8 @@ export class Request {
       headers: this.headers,
       body: realBody ? buffer.from(realBody).buffer : undefined,
       dns: undefined,
-      cacheOption: this.cacheOption
-    }
-    if (see) {
-
-    } else {
-      _signal
+      cacheOption: this.cacheOption,
+      isEventsource: this.isEventsource
     }
     return realRequest
   }
@@ -123,7 +132,8 @@ export class Request {
       headers: this.headers,
       body: realBody ? buffer.from(realBody).buffer : undefined,
       dns: undefined,
-      cacheOption: this.cacheOption
+      cacheOption: this.cacheOption,
+      isEventsource: this.isEventsource
     }
     return realRequest
   }
@@ -478,6 +488,8 @@ export class RequestBuilder {
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
   cacheOption?: CacheOption
   _signal?: any
+  isEventsource?: boolean
+  eventSourceCallback?: EventSourceCallback
 
 
   constructor(client: OkHttpClient) {
@@ -496,6 +508,11 @@ export class RequestBuilder {
     }
   }
 
+  toEventSource(callback: EventSourceCallback): RequestBuilder {
+    this.isEventsource = true
+    this.eventSourceCallback = callback
+    return this
+  }
 
   bearerAuth(token: string): RequestBuilder {
     this.setHead({
@@ -588,19 +605,24 @@ export class RequestBuilder {
 
   send(): Promise<Response | undefined> {
     let request = this.build()
-    return this.client.execute(request, this._signal)
+    return this.client.execute(request)
   }
 
-  /**
-   * 开始 Server-Sent Events (SSE) 连接。
-   * @param onMessage 接收每条事件的回调函数。
-   * @param onError 可选的错误处理回调。
-   * @returns Promise，在连接正常结束时 resolve，发生错误时 reject。
-   */
-  sse(onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
-    let request = this.build()
-    return this.client.sse(request, onMessage, onError, this._signal)
-  }
+  // /**
+  //  * 开始 Server-Sent Events (SSE) 连接。
+  //  * @param onMessage 接收每条事件的回调函数。
+  //  * @param onError 可选的错误处理回调。
+  //  * @returns Promise，在连接正常结束时 resolve，发生错误时 reject。
+  //  */
+  // sse(onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
+  //   let request = this.build()
+  //   return this.client.sse(request, onMessage, onError, this._signal)
+  // }
+}
+
+export interface EventSourceCallback {
+  onMessage: (message: string) => void,
+  onError: (error: any) => void
 }
 
 export enum HttpStatusCode {
