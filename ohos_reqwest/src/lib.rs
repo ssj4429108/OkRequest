@@ -432,8 +432,10 @@ impl ArkHttpClient {
         cb: Option<ThreadsafeFunction<String, ()>>,
     ) -> Result<ArkResponse> {
         if request.is_eventsource.unwrap_or(false) {
+            hilog_debug!("----------------  Sending EventSource request");
             match cb {
                 Some(cb) => {
+                    hilog_debug!("----------------  cb not null");
                     let client = self.new_real_origin_client()?;
                     let real_request = self.build_request_for_client(client, &request)?;
 
@@ -468,12 +470,14 @@ impl ArkHttpClient {
                     })
                 }
                 None => {
+                     hilog_debug!("----------------  cb null");
                     return Err(Error::from_reason(
                         "Callback function is required for EventSource".to_string(),
                     ));
                 }
             }
         } else {
+            hilog_debug!("----------------  else");
             let client = self.new_real_client(&request)?;
             let real_request = self.build_request_for_middleware(client, &request)?;
 
