@@ -7,7 +7,7 @@
   "license": "",
   "dependencies": {
     "@axzo/ok-request": "file:./../reqwest",
-//    "@axzo/ok-request": "1.0.9"
-//    "reqwest": "1.0.0"
-  }
+    "@ohos-rs/abort-controller": "^0.0.2"
+  },
+  "devDependencies": {}
 }

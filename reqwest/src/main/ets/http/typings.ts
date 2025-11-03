@@ -96,7 +96,7 @@ export class Request {
     return builder
   }
 
-  async toRealRequest(): Promise<oh_request.ArkRequest> {
+  async toRealRequest(callback): Promise<oh_request.ArkRequest> {
     let realBody = await this.body?.bytes() || undefined
 
     let realRequest: oh_request.ArkRequest = {
@@ -106,6 +106,11 @@ export class Request {
       body: realBody ? buffer.from(realBody).buffer : undefined,
       dns: undefined,
       cacheOption: this.cacheOption
+    }
+    if (see) {
+
+    } else {
+      _signal
     }
     return realRequest
   }
@@ -472,7 +477,8 @@ export class RequestBuilder {
   mediaType?: string
   dnsInfo: Array<socket.NetAddress> | undefined = undefined
   cacheOption?: CacheOption
-  _single?: any
+  _signal?: any
+
 
   constructor(client: OkHttpClient) {
     this.client = client
@@ -555,8 +561,8 @@ export class RequestBuilder {
     return this
   }
 
-  single(single: any): RequestBuilder {
-    this._single = single
+  signal(signal: any): RequestBuilder {
+    this._signal = signal
     return this
   }
 
@@ -582,7 +588,7 @@ export class RequestBuilder {
 
   send(): Promise<Response | undefined> {
     let request = this.build()
-    return this.client.execute(request, this._single)
+    return this.client.execute(request, this._signal)
   }
 
   /**
@@ -593,7 +599,7 @@ export class RequestBuilder {
    */
   sse(onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
     let request = this.build()
-    return this.client.sse(request, onMessage, onError)
+    return this.client.sse(request, onMessage, onError, this._signal)
   }
 }
 

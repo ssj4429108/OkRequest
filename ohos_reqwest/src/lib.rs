@@ -1,17 +1,22 @@
+use futures::stream::StreamExt;
 use futures_core::Stream;
 use hilog_binding::hilog_debug;
-use napi_derive_ohos::napi;
-use napi_ohos::{Error, JsString, Result, bindgen_prelude::{BigInt, Buffer}, threadsafe_function::ThreadsafeFunction};
-use reqwest::{Client, Version};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
-use std::{collections::HashMap, fmt::format, time::Duration};
-use http_cache_reqwest::{Cache, CacheMode as HttpCacheMode, CACacheManager, HttpCache, HttpCacheOptions};
-use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use http::Extensions;
-use futures::stream::StreamExt;
+use http_cache_reqwest::{
+    CACacheManager, Cache, CacheMode as HttpCacheMode, HttpCache, HttpCacheOptions,
+};
+use napi_derive_ohos::napi;
+use napi_ohos::{
+    bindgen_prelude::{BigInt, Buffer},
+    threadsafe_function::ThreadsafeFunction,
+    Error, JsString, Result,
+};
+use reqwest::{Client, Version};
 use reqwest_eventsource::{Event, EventSource};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::thread;
-
+use std::{any, collections::HashMap, fmt::format, time::Duration};
 
 #[napi(object)]
 #[derive(Clone)]
@@ -22,7 +27,8 @@ pub struct ArkRequest {
     pub protocol: Option<String>,
     pub body: Option<Buffer>,
     pub dns: Option<HashMap<String, Vec<String>>>,
-    pub cache_option: Option<CacheOption>
+    pub cache_option: Option<CacheOption>,
+    pub cb: Option<ThreadsafeFunction<String, ()>>
 }
 
 #[napi]
@@ -63,7 +69,7 @@ pub enum CacheMode {
 #[napi(object)]
 #[derive(Clone)]
 pub struct CacheOption {
-    pub cache_mode: CacheMode
+    pub cache_mode: CacheMode,
 }
 
 #[napi]
@@ -98,7 +104,6 @@ impl CurlCommand for ArkRequest {
         let method = self.method.as_str();
         let url = self.url.as_str();
         let headers = self.headers.clone();
-        
 
         // 构造 `curl` 命令
         let mut curl_cmd = format!("curl -X {}", method);
@@ -151,10 +156,9 @@ impl CurlCommand for reqwest::Request {
 
 impl ArkResponse {
     async fn new(resp: reqwest::Response) -> Result<ArkResponse> {
-        
         let status = resp.status();
         let version = format!("{:?}", resp.version());
-        
+
         let mut headers = HashMap::new();
         for (key, value) in resp.headers().iter() {
             if let Ok(val) = value.to_str() {
@@ -162,16 +166,23 @@ impl ArkResponse {
             }
         }
 
-        let res = resp.bytes().await.map_err(|e| Error::from_reason(format!("{:?}", e)))?;
+        let res = resp
+            .bytes()
+            .await
+            .map_err(|e| Error::from_reason(format!("{:?}", e)))?;
         let content_length: u64 = res.len().try_into().unwrap();
         let body = Some(ArkResponseBody {
             body: Buffer::from(res.to_vec()), // 直接使用 `Buffer::from(res)`，避免 `to_vec()`
             content_length: BigInt::from(content_length),
         });
-        
+
         let resp = ArkResponse {
             code: status.as_u16(),
-            headers: if headers.is_empty() { None } else { Some(headers) },
+            headers: if headers.is_empty() {
+                None
+            } else {
+                Some(headers)
+            },
             body: body,
             protocol: version,
             message: status.canonical_reason().unwrap_or("Unknown").to_string(), // 避免 `unwrap()`
@@ -202,7 +213,7 @@ pub struct Config {
     pub ignore_ssl: Option<bool>,
     pub force_rustls_ssl: Option<bool>,
     pub no_proxy: Option<bool>,
-    pub enable_curl_log: Option<bool>
+    pub enable_curl_log: Option<bool>,
 }
 
 #[napi]
@@ -214,7 +225,7 @@ impl Default for Config {
             ignore_ssl: None,
             force_rustls_ssl: None,
             no_proxy: None,
-            enable_curl_log: None
+            enable_curl_log: None,
         }
     }
 }
@@ -235,7 +246,6 @@ fn convert_protocol(protocol: &str) -> Result<Version> {
     }
 }
 
-
 pub struct CurlLoggerMiddleware;
 
 #[async_trait::async_trait]
@@ -246,8 +256,6 @@ impl Middleware for CurlLoggerMiddleware {
         extensions: &mut Extensions,
         next: Next<'_>,
     ) -> reqwest_middleware::Result<reqwest::Response> {
-
-
         let curl_cmd = &request.to_curl_command();
 
         hilog_debug!(format!("CURL Command: {}", curl_cmd));
@@ -260,24 +268,37 @@ impl Middleware for CurlLoggerMiddleware {
 
 #[napi]
 impl ArkHttpClient {
-    #[napi(constructor)]    
+    #[napi(constructor)]
     pub fn new(config: Option<Config>) -> Self {
         ArkHttpClient {
-            config: config.unwrap_or_else(|| Config::default())
+            config: config.unwrap_or_else(|| Config::default()),
         }
     }
 
     fn new_real_origin_client(&self) -> Result<Client> {
         let timeout = self.config.timeout;
         let mut reqwest_client_builder = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
-            .read_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
+            .connect_timeout(Duration::from_secs(u64::from_ne_bytes(
+                timeout.to_ne_bytes(),
+            )))
+            .read_timeout(Duration::from_secs(u64::from_ne_bytes(
+                timeout.to_ne_bytes(),
+            )))
             .danger_accept_invalid_certs(self.config.ignore_ssl.unwrap_or(false));
 
         if self.config.tls.is_some() {
             let default_cert = vec![];
-            for cert in self.config.tls.as_ref().unwrap().ca_cert.as_ref().unwrap_or(&default_cert).iter() {
-                if cert.ty.to_lowercase() ==  "pem" {
+            for cert in self
+                .config
+                .tls
+                .as_ref()
+                .unwrap()
+                .ca_cert
+                .as_ref()
+                .unwrap_or(&default_cert)
+                .iter()
+            {
+                if cert.ty.to_lowercase() == "pem" {
                     if let Ok(cert) = reqwest::Certificate::from_pem(cert.cert.as_bytes()) {
                         reqwest_client_builder = reqwest_client_builder.add_root_certificate(cert);
                     }
@@ -289,7 +310,14 @@ impl ArkHttpClient {
             }
             //client identity
             if self.config.tls.as_ref().unwrap().client_cert.is_some() {
-                let cert = self.config.tls.as_ref().unwrap().client_cert.as_ref().unwrap();
+                let cert = self
+                    .config
+                    .tls
+                    .as_ref()
+                    .unwrap()
+                    .client_cert
+                    .as_ref()
+                    .unwrap();
                 if let Ok(cert) = reqwest::Identity::from_pem(cert.as_bytes()) {
                     reqwest_client_builder = reqwest_client_builder.identity(cert);
                 }
@@ -310,14 +338,27 @@ impl ArkHttpClient {
     fn new_real_client(&self, request: &ArkRequest) -> Result<ClientWithMiddleware> {
         let timeout = self.config.timeout;
         let mut reqwest_client_builder = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
-            .read_timeout(Duration::from_secs(u64::from_ne_bytes(timeout.to_ne_bytes())))
+            .connect_timeout(Duration::from_secs(u64::from_ne_bytes(
+                timeout.to_ne_bytes(),
+            )))
+            .read_timeout(Duration::from_secs(u64::from_ne_bytes(
+                timeout.to_ne_bytes(),
+            )))
             .danger_accept_invalid_certs(self.config.ignore_ssl.unwrap_or(false));
 
         if self.config.tls.is_some() {
             let default_cert = vec![];
-            for cert in self.config.tls.as_ref().unwrap().ca_cert.as_ref().unwrap_or(&default_cert).iter() {
-                if cert.ty.to_lowercase() ==  "pem" {
+            for cert in self
+                .config
+                .tls
+                .as_ref()
+                .unwrap()
+                .ca_cert
+                .as_ref()
+                .unwrap_or(&default_cert)
+                .iter()
+            {
+                if cert.ty.to_lowercase() == "pem" {
                     if let Ok(cert) = reqwest::Certificate::from_pem(cert.cert.as_bytes()) {
                         reqwest_client_builder = reqwest_client_builder.add_root_certificate(cert);
                     }
@@ -329,7 +370,14 @@ impl ArkHttpClient {
             }
             //client identity
             if self.config.tls.as_ref().unwrap().client_cert.is_some() {
-                let cert = self.config.tls.as_ref().unwrap().client_cert.as_ref().unwrap();
+                let cert = self
+                    .config
+                    .tls
+                    .as_ref()
+                    .unwrap()
+                    .client_cert
+                    .as_ref()
+                    .unwrap();
                 if let Ok(cert) = reqwest::Identity::from_pem(cert.as_bytes()) {
                     reqwest_client_builder = reqwest_client_builder.identity(cert);
                 }
@@ -351,7 +399,7 @@ impl ArkHttpClient {
         //middleware
         let mut builder = ClientBuilder::new(reqwest_client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy));
-            
+
         if let Some(cache_option) = &request.cache_option {
             // cache
             let mode: HttpCacheMode = match cache_option.cache_mode {
@@ -369,107 +417,104 @@ impl ArkHttpClient {
                 options: HttpCacheOptions::default(),
             }));
         }
-        
+
         //curl log
         if self.config.enable_curl_log.unwrap_or(false) {
             builder = builder.with(CurlLoggerMiddleware);
         }
-        
-        let client: ClientWithMiddleware = builder
-            .build();
+
+        let client: ClientWithMiddleware = builder.build();
         Ok(client)
     }
 
-    #[napi]
-    pub async fn sse(&self, request: ArkRequest, cb: ThreadsafeFunction<String,()>) -> Result<()> {
-        let client= self.new_real_origin_client()?;
-        
-        let mut real_request = match request.method.to_uppercase().as_str() {
-            "GET" => client.get(request.url),
-            "POST" => client.post(request.url),
-            "PUT" => client.put(request.url),
-            "DELETE" => client.delete(request.url),
-            "PATCH" => client.patch(request.url),
-            "HEAD" => client.head(request.url),
-            _ => return Err(Error::from_reason("Unsupported method".to_string())),
-        };
-
-        if let Some(headers) = request.headers {
-            for (key, value) in headers.iter() {
-                real_request = real_request.header(key, value);
-            }
-        }
-
-        if let Some(protocol) = request.protocol {
-            let version = convert_protocol(&protocol).unwrap_or(Version::HTTP_11);
-            real_request = real_request.version(version);
-        }
-
-        if let Some(body) = request.body {
-            let body = body.to_vec();
-            real_request = real_request.body(reqwest::Body::from(body));
-        }
-        let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
     
-        while let Some(event) = es.next().await {
-            match event {
-                Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
-                // Ok(reqwest_eventsource::Event::Message(message)) =>  cb.call(Ok(format!("{}", message.data)), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking),
-                Ok(reqwest_eventsource::Event::Message(message)) => {
-                    cb.call(Ok(format!("{}", message.data)), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking);
-                    
-                },
-                Err(err) => {
-                    println!("Error: {}", err);
-                    es.close();
-                    cb.call(Err(Error::from_reason(format!("{}", err))), napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking);
-                    
-                    return Err(Error::from_reason(format!("{}", err)));
-                }
-            }
-        }
-        Ok(())
-    }
 
     #[napi]
     pub async fn send(&self, request: ArkRequest) -> Result<ArkResponse> {
-       
-        let client= self.new_real_client(&request)?;
+        match request.cb {
+            Some(cb) => {
+                let client = self.new_real_origin_client()?;
+                let mut real_request = self.build_request(client, &request)?;
+
+                let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
+
+                while let Some(event) = es.next().await {
+                    match event {
+                        Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
+                        Ok(reqwest_eventsource::Event::Message(message)) => {
+                            request.cb.call(
+                                Ok(format!("{}", message.data)),
+                                napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                            );
+                        }
+                        Err(err) => {
+                            println!("Error: {}", err);
+                            es.close();
+                            request.cb.call(
+                                Err(Error::from_reason(format!("{}", err))),
+                                napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                            );
+
+                            return Err(Error::from_reason(format!("{}", err)));
+                        }
+                    }
+                }
+                Ok(ArkResponse {
+                    code: 200,
+                    headers: None,
+                    body: None,
+                    protocol: "HTTP/1.1".to_string(),
+                    message: "OK".to_string(),
+                })
+            }
+            None => {
+                let client = self.new_real_client(&request)?;
+                let real_request = self.build_request(client, &request)?;
+
+                let resp = real_request.send().await.map_err(|e| {
+                    let err_str = format!("{:?}", e);
+                    Error::from_reason(err_str)
+                })?;
+
+                let ark_resp = ArkResponse::new(resp).await?;
+                Ok(ark_resp)
+            }
+        }
+    }
+
+    // 提取构建请求的公共方法
+    fn build_request(
+        &self,
+        client: impl Into<reqwest::Client>,
+        request: &ArkRequest,
+    ) -> Result<reqwest::RequestBuilder> {
+        let client = client.into();
         let mut real_request = match request.method.to_uppercase().as_str() {
-            "GET" => client.get(request.url),
-            "POST" => client.post(request.url),
-            "PUT" => client.put(request.url),
-            "DELETE" => client.delete(request.url),
-            "PATCH" => client.patch(request.url),
-            "HEAD" => client.head(request.url),
+            "GET" => client.get(&request.url),
+            "POST" => client.post(&request.url),
+            "PUT" => client.put(&request.url),
+            "DELETE" => client.delete(&request.url),
+            "PATCH" => client.patch(&request.url),
+            "HEAD" => client.head(&request.url),
             _ => return Err(Error::from_reason("Unsupported method".to_string())),
         };
 
-        if let Some(headers) = request.headers {
+        if let Some(headers) = &request.headers {
             for (key, value) in headers.iter() {
                 real_request = real_request.header(key, value);
             }
         }
 
-        if let Some(protocol) = request.protocol {
-            let version = convert_protocol(&protocol).unwrap_or(Version::HTTP_11);
+        if let Some(protocol) = &request.protocol {
+            let version = convert_protocol(protocol).unwrap_or(Version::HTTP_11);
             real_request = real_request.version(version);
         }
 
-        if let Some(body) = request.body {
+        if let Some(body) = &request.body {
             let body = body.to_vec();
             real_request = real_request.body(reqwest::Body::from(body));
         }
-        
-        let resp = real_request
-            .send()
-            .await
-            .map_err(|e| {
-                let err_str = format!("{:?}", e);
-                Error::from_reason(err_str)
-            })?;
-        
-        let ark_resp = ArkResponse::new(resp).await?;
-        Ok(ark_resp)
+
+        Ok(real_request)
     }
 }

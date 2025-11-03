@@ -82,6 +82,11 @@ export class OkHttpClient {
     return requestBuilder
   }
 
+  toEventSource(onMessage : (msg: string) => void, onError?: (err: any) => void){
+    let requestBuilder = new RequestBuilder(this)
+    requestBuilder.
+  }
+
   head(url: string): RequestBuilder {
     let requestBuilder = new RequestBuilder(this)
     requestBuilder.url = this.generateUrl(url)
@@ -90,17 +95,19 @@ export class OkHttpClient {
   }
 
 
-  async execute(request: Request, single?: any): Promise<Response | undefined> {
+  async execute(request: Request, signal?: any): Promise<Response | undefined> {
     this.checkLoadedSO()
 
     this.config.requestInterceptors.forEach((interceptor) => {
       request = interceptor.intercept(request)
     })
     request.url = this.generateUrl(request.url)
-    let realRequest = await request.toRealRequest()
+
+    let realRequest = await request.toRealRequest(callback)
+
     // this.requestCache.set(request.requestId, realRequest)
 
-    let result = await this.send(request, realRequest, single)
+    let result = await this.send(request, realRequest, signal)
 
     this.config.responseInterceptors.forEach((interceptor) => {
       result = interceptor.intercept(result)
@@ -108,9 +115,16 @@ export class OkHttpClient {
     return result
   }
 
-  async sse(request: Request, onMessage: (msg: string) => void, onError?: (err: any) => void): Promise<void> {
+  async sse(request: Request, onMessage: (msg: string) => void, onError?: (err: any) => void,
+    signal?: any): Promise<void> {
+    var isCancel = false
     this.checkLoadedSO()
-
+    if (signal) {
+      signal.addEventListener(('abort'), () => {
+        isCancel = true
+        throw Error('request aborted by signal.')
+      })
+    }
     this.config.requestInterceptors.forEach((interceptor) => {
       request = interceptor.intercept(request)
     })
@@ -123,21 +137,25 @@ export class OkHttpClient {
           if (err) {
             if (onError) {
               try {
-                onError(err)
-              } catch (e) { /* ignore */
+                if (!isCancel) {
+                  onError(err)
+                }
+              } catch (e) {
               }
             }
             reject(err)
           } else {
             try {
-              onMessage(arg)
+              if (!isCancel) {
+                onMessage(arg)
+              }
             } catch (e) {
             }
           }
         }).then(() => {
           resolve()
         }).catch((e: any) => {
-          if (onError) {
+          if (onError && !isCancel) {
             try {
               onError(e)
             } catch (ee) {
@@ -146,7 +164,7 @@ export class OkHttpClient {
           reject(e)
         })
       } catch (e) {
-        if (onError) {
+        if (onError && !isCancel) {
           try {
             onError(e)
           } catch (ee) {
@@ -160,11 +178,7 @@ export class OkHttpClient {
   protected async send(request: Request, realRequest: oh_request.ArkRequest,
     signal?: any): Promise<Response | undefined> {
     let result: oh_request.ArkResponse | undefined
-    if (signal) {
-      signal.addEventListener(('abort'), () => {
-        throw Error('request aborted by signal.')
-      })
-    }
+
     try {
       result = await this.client.send(realRequest)
     } catch (e) {
