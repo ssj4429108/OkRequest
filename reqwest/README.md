@@ -140,6 +140,38 @@ let multipart = new MultiPartBodyBuilder()
 let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
 ```
 
+### Server-Sent Events (SSE) 支持
+
+```typescript
+// SSE 简单用法
+await this.client.get('https://api.example.com/events')
+  .sse(
+    (msg: string) => {
+      console.info('收到 SSE 消息:', msg);
+    },
+    (err: any) => {
+      console.error('SSE 错误:', err);
+    }
+  );
+
+// 带请求头和查询参数的 SSE
+await this.client.get('https://api.example.com/events')
+  .head('Authorization', 'Bearer token123')
+  .query({ type: 'updates' })
+  .sse(
+    (msg: string) => {
+      // 处理每条事件消息
+      console.info('收到消息:', msg);
+    },
+    (err: any) => {
+      // 处理错误（可选）
+      console.error('发生错误:', err);
+    }
+  );
+```
+
+### 异常处理
+
 ### SSE
 ```typescript
     await this.client.get('https://api.example.com/events')
@@ -152,8 +184,6 @@ let result = await this.client.post('xxx.xxx.xxx').multipart(multipart).send()
     }
   );
 ```
-
-### 异常处理
 
 ```typescript
 try {
