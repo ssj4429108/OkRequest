@@ -54,26 +54,32 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
 
-          const encodedQuestion = encodeURIComponent("建筑工程?") //系统阴阳角保温结构
-          const api =
-            `https://test-api.axzo.cn/ai-assistant/webApi/ai/assistant/bot/chatStream?question=${encodedQuestion}&showReason=${false}`
+         //  const encodedQuestion = encodeURIComponent("建筑工程?") //系统阴阳角保温结构
+         //  const api =
+         //    `https://test-api.axzo.cn/ai-assistant/webApi/ai/assistant/bot/chatStream?question=${encodedQuestion}&showReason=${false}`
+         //
+         //  // 使用自定义的 AbortController
+         // const sseResult =  await this.client.get(api)
+         //    .head({
+         //      "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiVjlIeHhOMVpkRkNFTlBZU3lXYU04SXk3MTR4Wko2c1AifQ.Ow8qUgvwKd6PKUteD-UeDKvCTl8ycG6AcmsqoNOWEx0"
+         //    })
+         //    .signal(this.controller)
+         //    .toEventSource({
+         //      onMessage(event: string) {
+         //        console.log(event)
+         //      },
+         //      onError(error: string) {
+         //        console.log(error)
+         //      }
+         //    })
+         //    .send()
+         //  console.log(`------------${sseResult?.text()}`)
 
-          // 使用自定义的 AbortController
-           this.client.get(api)
-            .head({
-              "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiVjlIeHhOMVpkRkNFTlBZU3lXYU04SXk3MTR4Wko2c1AifQ.Ow8qUgvwKd6PKUteD-UeDKvCTl8ycG6AcmsqoNOWEx0"
-            })
-            .signal(this.controller)
-            .toEventSource({
-              onMessage(event: string) {
-                console.log(event)
-              },
-              onError(error: string) {
-                console.log(error)
-              }
-            })
-            .send()
 
+          const result = await this.client.get(
+            "https://www.baidu.com/"
+          ).send()
+          console.log(`------------${result?.text()}`)
           // await request.send()
           // // 执行 SSE 连接
           // await request.sse(
