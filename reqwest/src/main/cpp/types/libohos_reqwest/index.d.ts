@@ -99,6 +99,7 @@ export declare function toCurl(request: ArkRequest): string
 export declare class ArkHttpClient {
   config: Config
   constructor(config?: Config | undefined | null)
-  send(request: ArkRequest, cb?: ((err: Error | null, arg: string) => void) | undefined | null): Promise<ArkResponse>
+  send(request: ArkRequest): Promise<ArkResponse>
+  sendWithCallback(request: ArkRequest, cb: ((err: Error | null, arg: string) => void)): Promise<ArkResponse>
 }
 

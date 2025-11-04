@@ -128,7 +128,7 @@ export class OkHttpClient {
           throw Error('request aborted by signal.')
         })
       }
-      result = await this.client?.send(realRequest, (err: Error | null, msg: string) => {
+      result = await this.client?.sendWithCallback(realRequest, (err: Error | null, msg: string) => {
         console.log('send request: ------------- ', msg)
         if (err) {
           if (request.eventSourceCallback?.onError && !isCancel) {
