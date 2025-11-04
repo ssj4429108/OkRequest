@@ -53,27 +53,9 @@ struct Index {
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
-
-          await this.client.get("https://baidu.com").send()
-
-          const encodedQuestion = encodeURIComponent("建筑工程?") //系统阴阳角保温结构
-          const api =
-            `https://test-api.axzo.cn/ai-assistant/webApi/ai/assistant/bot/chatStream?question=${encodedQuestion}&showReason=${false}`
-
-          await this.client.get(api)
-            .head({
-              "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiVjlIeHhOMVpkRkNFTlBZU3lXYU04SXk3MTR4Wko2c1AifQ.Ow8qUgvwKd6PKUteD-UeDKvCTl8ycG6AcmsqoNOWEx0"
-            })
-            .signal(this.controller.signal)
-            .toEventSource({
-              onMessage(event: string) {
-                console.log(event)
-              },
-              onError(error: string) {
-                console.log(error)
-              }
-            })
-            .send()
+          const result = await this.client.get(
+            "https://www.baidu.com/"
+          ).send()
         })
 
       // 添加取消按钮
