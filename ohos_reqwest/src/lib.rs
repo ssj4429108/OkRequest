@@ -429,65 +429,66 @@ impl ArkHttpClient {
     pub async fn send(
         &self,
         request: ArkRequest,
-        cb: Option<ThreadsafeFunction<String, ()>>,
+    ) -> Result<ArkResponse> {
+        let client = self.new_real_client(&request)?;
+        let real_request = self.build_request_for_middleware(client, &request)?;
+
+        let resp = real_request.send().await.map_err(|e| {
+            let err_str = format!("{:?}", e);
+            Error::from_reason(err_str)
+        })?;
+
+        let ark_resp = ArkResponse::new(resp).await?;
+        Ok(ark_resp)
+    }
+
+    #[napi]
+    pub async fn send_with_callback(
+        &self,
+        request: ArkRequest,
+        cb: ThreadsafeFunction<String, ()>,
     ) -> Result<ArkResponse> {
         if request.is_eventsource.unwrap_or(false) {
-            hilog_debug!("----------------  Sending EventSource request");
-            match cb {
-                Some(cb) => {
-                    hilog_debug!("----------------  cb not null");
-                    let client = self.new_real_origin_client()?;
-                    let real_request = self.build_request_for_client(client, &request)?;
+            println!("----------------  Sending EventSource request");
+            hilog_debug!("----------------  cb not null");
+            let client = self.new_real_origin_client()?;
+            let real_request = self.build_request_for_client(client, &request)?;
 
-                    let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
+            let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
 
-                    while let Some(event) = es.next().await {
-                        match event {
-                            Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
-                            Ok(reqwest_eventsource::Event::Message(message)) => {
-                                cb.call(
-                                    Ok(format!("{}", message.data)),
-                                    napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-                                );
-                            }
-                            Err(err) => {
-                                println!("Error: {}", err);
-                                es.close();
-                                cb.call(
-                                    Err(Error::from_reason(format!("{}", err))),
-                                    napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-                                );
-                                return Err(Error::from_reason(format!("{}", err)));
-                            }
-                        }
+            while let Some(event) = es.next().await {
+                match event {
+                    Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
+                    Ok(reqwest_eventsource::Event::Message(message)) => {
+                        cb.call(
+                            Ok(format!("{}", message.data)),
+                            napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                        );
                     }
-                    Ok(ArkResponse {
-                        code: 200,
-                        headers: None,
-                        body: None,
-                        protocol: "HTTP/1.1".to_string(),
-                        message: "OK".to_string(),
-                    })
-                }
-                None => {
-                     hilog_debug!("----------------  cb null");
-                    return Err(Error::from_reason(
-                        "Callback function is required for EventSource".to_string(),
-                    ));
+                    Err(err) => {
+                        println!("Error: {}", err);
+                        es.close();
+                        cb.call(
+                            Err(Error::from_reason(format!("{}", err))),
+                            napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                        );
+                        return Err(Error::from_reason(format!("{}", err)));
+                    }
                 }
             }
+            es.close();
+            Ok(ArkResponse {
+                code: 200,
+                headers: None,
+                body: None,
+                protocol: "HTTP/1.1".to_string(),
+                message: "OK".to_string(),
+            })
         } else {
-            hilog_debug!("----------------  else");
-            let client = self.new_real_client(&request)?;
-            let real_request = self.build_request_for_middleware(client, &request)?;
-
-            let resp = real_request.send().await.map_err(|e| {
-                let err_str = format!("{:?}", e);
-                Error::from_reason(err_str)
-            })?;
-
-            let ark_resp = ArkResponse::new(resp).await?;
-            Ok(ark_resp)
+            println!("----------------  else");
+            return Err(Error::from_reason(
+                "is_eventsource is false, use the other send method".to_string(),
+            ));
         }
     }
 
