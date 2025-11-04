@@ -94,3 +94,6 @@
 - 对SSE新增abort操作
 - 优化ohos_reqwest api
 - 统一send调用风格
+
+### 1.0.25 / 2025-11-4
+- 更改abort异常抛出方式

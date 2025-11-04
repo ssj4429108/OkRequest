@@ -124,7 +124,11 @@ export class OkHttpClient {
     if (signal) {
       signal.addEventListener(('abort'), () => {
         isCancel = true
-        throw Error('request aborted by signal.')
+        if (request.isEventsource) {
+          request.eventSourceCallback?.onError(Error('request abort by signal'))
+        } else {
+          return undefined
+        }
       })
     }
     if (request.isEventsource) {
