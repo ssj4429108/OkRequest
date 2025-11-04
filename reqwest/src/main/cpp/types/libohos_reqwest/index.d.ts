@@ -80,7 +80,7 @@ export interface Cert {
   ty: string
 }
 
-export interface Config {
+export interface ClientConfig {
   timeout: number
   tls?: TlsConfig
   ignoreSsl?: boolean
@@ -97,9 +97,7 @@ export interface TlsConfig {
 export declare function toCurl(request: ArkRequest): string
 
 export declare class ArkHttpClient {
-  config: Config
-  constructor(config?: Config | undefined | null)
-  send(request: ArkRequest): Promise<ArkResponse>
-  sendWithCallback(request: ArkRequest, cb: ((err: Error | null, arg: string) => void)): Promise<ArkResponse>
+  constructor(config?: ClientConfig | undefined | null)
+  send(request: ArkRequest, cb?: ((err: Error | null, arg: string) => void) | undefined | null): Promise<ArkResponse>
 }
 

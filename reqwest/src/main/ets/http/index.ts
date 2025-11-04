@@ -1,6 +1,7 @@
 import { EventSourceCallback, HttpError, HttpMethod, OkConfig, Request, RequestBuilder, Response } from "./typings";
 import oh_request from 'libohos_reqwest.so'
 import { buffer } from "@kit.ArkTS";
+import hilog from "@ohos.hilog";
 
 export class OkHttpClient {
   protected client: oh_request.ArkHttpClient | undefined;
@@ -22,7 +23,7 @@ export class OkHttpClient {
       }
     }
 
-    let clientConfig: oh_request.Config = {
+    let clientConfig: oh_request.ClientConfig = {
       timeout: config.timeout,
       tls: tlsConfig,
       enableCurlLog: config.enableCurlLog,
@@ -118,18 +119,16 @@ export class OkHttpClient {
   protected async send(request: Request, realRequest: oh_request.ArkRequest): Promise<Response | undefined> {
     let result: oh_request.ArkResponse | undefined
     let signal = request.signal
-    console.log('send request: ------------- ', realRequest.isEventsource)
-    if (request.isEventsource) {
-      var isCancel = false
 
-      if (signal) {
-        signal.addEventListener(('abort'), () => {
-          isCancel = true
-          throw Error('request aborted by signal.')
-        })
-      }
-      result = await this.client?.sendWithCallback(realRequest, (err: Error | null, msg: string) => {
-        console.log('send request: ------------- ', msg)
+    var isCancel = false
+    if (signal) {
+      signal.addEventListener(('abort'), () => {
+        isCancel = true
+        throw Error('request aborted by signal.')
+      })
+    }
+    if (request.isEventsource) {
+      result = await this.client?.send(realRequest, (err: Error | null, msg: string) => {
         if (err) {
           if (request.eventSourceCallback?.onError && !isCancel) {
             request.eventSourceCallback?.onError(err)
@@ -141,11 +140,6 @@ export class OkHttpClient {
         }
       })
     } else {
-      if (signal) {
-        signal.addEventListener(('abort'), () => {
-          throw Error('request aborted by signal.')
-        })
-      }
       try {
         result = await this.client.send(realRequest)
       } catch (e) {

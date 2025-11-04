@@ -14,10 +14,10 @@ use napi_ohos::{
 use reqwest::{Client, Version};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use std::path::PathBuf;
 use std::{collections::HashMap, time::Duration};
 
 #[napi(object)]
-#[derive(Clone)]
 pub struct ArkRequest {
     pub url: String,
     pub method: String,
@@ -77,7 +77,6 @@ pub fn to_curl(request: ArkRequest) -> Result<String> {
 }
 
 #[napi(object)]
-#[derive(Clone)]
 pub struct ArkResponse {
     pub code: u16,
     pub headers: Option<HashMap<String, String>>,
@@ -87,7 +86,6 @@ pub struct ArkResponse {
 }
 
 #[napi(object)]
-#[derive(Clone)]
 pub struct ArkResponseBody {
     pub body: Buffer,
     pub content_length: BigInt,
@@ -203,9 +201,9 @@ pub struct TlsConfig {
     pub client_cert: Option<String>,
 }
 
-#[napi(object)]
 #[derive(Clone)]
-pub struct Config {
+#[napi(object)]
+pub struct ClientConfig {
     pub timeout: i64,
     pub tls: Option<TlsConfig>,
     pub ignore_ssl: Option<bool>,
@@ -215,9 +213,9 @@ pub struct Config {
 }
 
 #[napi]
-impl Default for Config {
-    fn default() -> Config {
-        Config {
+impl Default for ClientConfig {
+    fn default() -> ClientConfig {
+        ClientConfig {
             timeout: 10,
             tls: None,
             ignore_ssl: None,
@@ -229,9 +227,8 @@ impl Default for Config {
 }
 
 #[napi]
-#[derive(Clone)]
 pub struct ArkHttpClient {
-    pub config: Config,
+    config: ClientConfig
 }
 fn convert_protocol(protocol: &str) -> Result<Version> {
     match protocol {
@@ -267,9 +264,9 @@ impl Middleware for CurlLoggerMiddleware {
 #[napi]
 impl ArkHttpClient {
     #[napi(constructor)]
-    pub fn new(config: Option<Config>) -> Self {
+    pub fn new(config: Option<ClientConfig>) -> Self {
         ArkHttpClient {
-            config: config.unwrap_or_else(|| Config::default()),
+            config: config.unwrap_or_else(|| ClientConfig::default()),
         }
     }
 
@@ -411,7 +408,7 @@ impl ArkHttpClient {
             };
             builder = builder.with(Cache(HttpCache {
                 mode: mode,
-                manager: CACacheManager::default(),
+                manager: CACacheManager::new(PathBuf::from("./http-cacache"), true),
                 options: HttpCacheOptions::default(),
             }));
         }
@@ -429,69 +426,67 @@ impl ArkHttpClient {
     pub async fn send(
         &self,
         request: ArkRequest,
-    ) -> Result<ArkResponse> {
-        let client = self.new_real_client(&request)?;
-        let real_request = self.build_request_for_middleware(client, &request)?;
-
-        let resp = real_request.send().await.map_err(|e| {
-            let err_str = format!("{:?}", e);
-            Error::from_reason(err_str)
-        })?;
-
-        let ark_resp = ArkResponse::new(resp).await?;
-        Ok(ark_resp)
-    }
-
-    #[napi]
-    pub async fn send_with_callback(
-        &self,
-        request: ArkRequest,
-        cb: ThreadsafeFunction<String, ()>,
+        cb: Option<ThreadsafeFunction<String, ()>>,
     ) -> Result<ArkResponse> {
         if request.is_eventsource.unwrap_or(false) {
-            println!("----------------  Sending EventSource request");
-            hilog_debug!("----------------  cb not null");
-            let client = self.new_real_origin_client()?;
-            let real_request = self.build_request_for_client(client, &request)?;
+            match cb {
+                Some(cb) => {
+                    let client = self.new_real_origin_client()?;
+                    let real_request = self.build_request_for_client(client, &request)?;
 
-            let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
+                    let mut es = reqwest_eventsource::EventSource::new(real_request).unwrap();
 
-            while let Some(event) = es.next().await {
-                match event {
-                    Ok(reqwest_eventsource::Event::Open) => println!("Connection Open!"),
-                    Ok(reqwest_eventsource::Event::Message(message)) => {
-                        cb.call(
-                            Ok(format!("{}", message.data)),
-                            napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-                        );
+                    while let Some(event) = es.next().await {
+                        match event {
+                            Ok(reqwest_eventsource::Event::Open) => {
+                                println!("Connection Open!")
+                            },
+                            Ok(reqwest_eventsource::Event::Message(message)) => {
+                                cb.call(
+                                    Ok(format!("{}", message.data)),
+                                    napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                                );
+                            }
+                            Err(err) => {
+                                es.close();
+                                cb.call(
+                                    Err(Error::from_reason(format!("{}", err))),
+                                    napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                                );
+                                return Err(Error::from_reason(format!("{}", err)));
+                            }
+                        }
                     }
-                    Err(err) => {
-                        println!("Error: {}", err);
-                        es.close();
-                        cb.call(
-                            Err(Error::from_reason(format!("{}", err))),
-                            napi_ohos::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-                        );
-                        return Err(Error::from_reason(format!("{}", err)));
-                    }
+                    es.close();
+                    Ok(ArkResponse {
+                        code: 200,
+                        headers: None,
+                        body: None,
+                        protocol: "HTTP/1.1".to_string(),
+                        message: "OK".to_string(),
+                    })     
+                }
+                None => {
+                    return Err(Error::from_reason(
+                        "is_eventsource is true, callback is required".to_string(),
+                    ));
                 }
             }
-            es.close();
-            Ok(ArkResponse {
-                code: 200,
-                headers: None,
-                body: None,
-                protocol: "HTTP/1.1".to_string(),
-                message: "OK".to_string(),
-            })
         } else {
-            println!("----------------  else");
-            return Err(Error::from_reason(
-                "is_eventsource is false, use the other send method".to_string(),
-            ));
-        }
-    }
+            let client = self.new_real_client(&request)?;
 
+            let real_request = self.build_request_for_middleware(client, &request)?;
+
+            let resp = real_request.send().await.map_err(|e| {
+                let err_str = format!("{:?}", e);
+                Error::from_reason(err_str)
+            })?;
+
+            let ark_resp = ArkResponse::new(resp).await?;
+            Ok(ark_resp)
+        }
+        
+    }
     // 提取构建请求的公共方法 for Client
     fn build_request_for_client(
         &self,

@@ -1,6 +1,6 @@
 {
   "name": "libohos_reqwest.so",
   "types": "./index.d.ts",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Please describe the basic information."
 }

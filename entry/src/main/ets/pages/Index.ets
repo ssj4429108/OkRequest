@@ -54,16 +54,17 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
 
+          await this.client.get("https://baidu.com").send()
+
           const encodedQuestion = encodeURIComponent("建筑工程?") //系统阴阳角保温结构
           const api =
             `https://test-api.axzo.cn/ai-assistant/webApi/ai/assistant/bot/chatStream?question=${encodedQuestion}&showReason=${false}`
 
-          // 使用自定义的 AbortController
-           this.client.get(api)
+          await this.client.get(api)
             .head({
               "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJOVF9BUFBfR0VORVJBTDo3NDI5OSIsInJuU3RyIjoiVjlIeHhOMVpkRkNFTlBZU3lXYU04SXk3MTR4Wko2c1AifQ.Ow8qUgvwKd6PKUteD-UeDKvCTl8ycG6AcmsqoNOWEx0"
             })
-            .signal(this.controller)
+            .signal(this.controller.signal)
             .toEventSource({
               onMessage(event: string) {
                 console.log(event)
@@ -73,22 +74,6 @@ struct Index {
               }
             })
             .send()
-
-          // await request.send()
-          // // 执行 SSE 连接
-          // await request.sse(
-          //   (msg: string) => {
-          //     console.info('收到 SSE 消息:', msg);
-          //   },
-          //   (err: Error) => {
-          //     // 区分是用户主动取消还是其他错误
-          //     if (err.message === 'request aborted by signal.') {
-          //       console.info('请求已被用户取消');
-          //     } else {
-          //       console.error('SSE 错误:', err);
-          //     }
-          //   }
-          // );
         })
 
       // 添加取消按钮

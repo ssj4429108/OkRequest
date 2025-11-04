@@ -1,6 +1,6 @@
 [package]
 name    = "ohos_reqwest"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,12 +9,12 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi-ohos = { version = "1.0.1", default-features = false, features = [
+napi-ohos = { version = "1.1.3", default-features = false, features = [
     "napi8",
     "async",
     # "tokio_rt"
 ] }
-napi-derive-ohos = { version = "1.0.1" }
+napi-derive-ohos = { version = "1.1.3" }
 # tokio = { version = "1.44.1", features = ["full"] }
 reqwest = { version = "0.12.15", default-features = false, features = ["rustls-tls", "json", "multipart", "stream"] }
 reqwest-middleware = { version = "0.4.1", default-features = false, features = ["json", "rustls-tls", "multipart"] }
@@ -26,10 +26,10 @@ futures-util = { version = "0.3.31", default-features = false, optional = true }
 # lazy_static = "1.4"
 # serde = { version = "1.0", features = ["derive"] }
 # serde_json = "1.0.117"
-async-trait = "0.1.88"
-ohos-hilog-binding = "0.1.1"
+async-trait = "0.1.89"
+ohos-hilog-binding = "0.1.2"
 hilog-binding = "0.0.4"
-http-cache-reqwest = "0.15.1"
+http-cache-reqwest = "0.16.0"
 reqwest-retry = "0.7.0"
 http = "1.3.1"
 # http-cache = "0.20.1"
@@ -37,7 +37,7 @@ http = "1.3.1"
 # async-trait = "0.1"
 
 [build-dependencies]
-napi-build-ohos = { version = "1.0.1" }
+napi-build-ohos = { version = "1.1.3" }
 
 [profile.release]
 lto = true
