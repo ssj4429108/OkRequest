@@ -1,4 +1,6 @@
-import { OkConfig, OkHttpClient, Request, CacheMode, MultipartBodyBuilder, FileBody } from '@axzo/ok-request';
+import { OkConfig, OkHttpClient, Request, CacheMode, MultipartBodyBuilder, FileBody,
+  RequestBodyBuilder,
+  TextRequestBody} from '@axzo/ok-request';
 import fileIo from '@ohos.file.fs';
 import { util } from '@kit.ArkTS';
 import { AbortController } from '@ohos-rs/abort-controller';
@@ -42,6 +44,11 @@ struct Index {
   private isLivenessDetection: boolean = false
   private controller = new AbortController();
 
+  private string2BytesSync(data: string): ArrayBuffer {
+    let encoder = util.TextEncoder.create('utf-8')
+    let uint8Array = encoder.encodeInto(data)
+    return uint8Array
+  }
   build() {
     Column() {
       Text(this.message)
@@ -53,7 +60,7 @@ struct Index {
         .fontSize(40)
         .fontWeight(FontWeight.Bold)
         .onClick(async () => {
-          const result = await this.client.get(
+          const result = await this.client.put(
             "https://www.baidu.com/"
           ).send()
         })

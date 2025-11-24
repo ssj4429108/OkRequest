@@ -175,7 +175,7 @@ export class RequestBodyBuilder {
   }
 }
 
-class TextRequestBody implements RequestBody {
+export class TextRequestBody implements RequestBody {
   private data: string
   private originalType: string | undefined
 

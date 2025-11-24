@@ -478,6 +478,7 @@ impl ArkHttpClient {
             let real_request = self.build_request_for_middleware(client, &request)?;
 
             let resp = real_request.send().await.map_err(|e| {
+                hilog_debug!("start request send3");
                 let err_str = format!("{:?}", e);
                 Error::from_reason(err_str)
             })?;
@@ -515,8 +516,8 @@ impl ArkHttpClient {
         }
 
         if let Some(body) = &request.body {
-            let body = body.to_vec();
-            real_request = real_request.body(reqwest::Body::from(body));
+            let bytes: &[u8] = body.as_ref();
+            real_request = real_request.body(bytes.to_owned());
         }
 
         Ok(real_request)
@@ -550,8 +551,8 @@ impl ArkHttpClient {
         }
 
         if let Some(body) = &request.body {
-            let body = body.to_vec();
-            real_request = real_request.body(reqwest::Body::from(body));
+            let bytes: &[u8] = body.as_ref();
+            real_request = real_request.body(bytes.to_owned());
         }
 
         Ok(real_request)

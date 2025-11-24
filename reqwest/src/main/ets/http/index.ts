@@ -145,7 +145,7 @@ export class OkHttpClient {
       })
     } else {
       try {
-        result = await this.client.send(realRequest)
+        result = await this.client.send(realRequest, null)
       } catch (e) {
         throw e
       }

@@ -1,6 +1,19 @@
 {
   "app": {
     "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/skipper/.ohos/config/default_OkReqwest_K__xP9Sgb-BPhv8J8bEOrj48HQvxwTSh_BxQ_bUekaA=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B6FAA1FE3E085C7AE5957EDC3F588305EF9F64DCD1BC2D63716FABD70E4556F66A3FF51B4567827",
+          "profile": "/Users/skipper/.ohos/config/default_OkReqwest_K__xP9Sgb-BPhv8J8bEOrj48HQvxwTSh_BxQ_bUekaA=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/skipper/.ohos/config/default_OkReqwest_K__xP9Sgb-BPhv8J8bEOrj48HQvxwTSh_BxQ_bUekaA=.p12",
+          "storePassword": "0000001BC1E6810109572E65BFB027E35A700753B565B0A82AC598AA8DCDF0E386178B890AF5DE18A681EE"
+        }
+      }
     ],
     "products": [
       {
